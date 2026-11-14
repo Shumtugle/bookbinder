@@ -75,4 +75,4 @@ widget_empty=Valitse kirja
 widget_ground=Pienoissovellusten tausta
 widget_ground_none=ei
 r_later=Tällaisia linkkejä ei vielä tueta.
-link_text_more=Toimivat: kahden pilvilevyn jaetut kansiot sekä verkkopalvelimen kansio, joka näyttää tiedostolistansa.
+link_text_more=Toimivat: kahden pilvilevyn jaetut kansiot, kansio jonka avain kulkee linkissä, sekä verkkopalvelimen kansio, joka näyttää tiedostolistansa.

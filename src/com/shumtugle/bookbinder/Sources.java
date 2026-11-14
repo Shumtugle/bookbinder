@@ -28,6 +28,9 @@ final class Sources {
 
         /** The length of the file at an address, or -1 when the server does not say. */
         long length(URL u) throws IOException;
+
+        /** Sends a body and reads the answer as text. */
+        String post(URL u, String body) throws IOException;
     }
 
     /** A refusal with a status code from the server. */

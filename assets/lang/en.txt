@@ -75,4 +75,4 @@ widget_empty=Pick a book
 widget_ground=Widget background
 widget_ground_none=none
 r_later=This kind of link is not supported yet.
-link_text_more=Links that work: shared folders of two cloud disks, and a folder on a web server that lists its files.
+link_text_more=Links that work: shared folders of two cloud disks, a shared folder whose key travels in the link, and a folder on a web server that lists its files.

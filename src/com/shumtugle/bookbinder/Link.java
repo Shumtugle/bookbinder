@@ -18,6 +18,8 @@ final class Link {
     static final char CODE = 'p';
     static final char DISK = 'y';
     static final char WEB = 'h';
+    /** A folder whose key travels in the link after the hash mark. */
+    static final char SEALED = 'm';
     /** Recognised, not read yet. */
     static final char LATER = 'x';
 
@@ -141,7 +143,7 @@ final class Link {
                 plain = plain.substring(0, hash);
             }
             if (keyInside) {
-                return new Link(LATER, "x" + mark(plain), plain, false);
+                return new Link(hash >= 0 ? SEALED : LATER, "m" + mark(plain), plain, false);
             }
             if (host.startsWith("disk.yandex.") || host.equals("yadi.sk") || host.endsWith(".yadi.sk")) {
                 return new Link(DISK, "y" + mark(plain), plain, false);

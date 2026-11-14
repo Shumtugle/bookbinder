@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6
+- Shared folders whose key travels in the link: names, file keys and the files themselves are decrypted on the phone; a broken fetch goes on from where it stopped, a cover is read from the head of the first chapter. Both forms of such a link work, and a link to one file is a book of one chapter.
+
 ## 0.5
 - A link is taken out of whatever text it came in: quotes, line breaks, words around it and punctuation stuck to it are left behind; a folder of a known kind wins over a plain web address. "Paste" puts only the link into the field.
 

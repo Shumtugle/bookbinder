@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.shumtugle.bookbinder"
-    android:versionCode="5"
-    android:versionName="0.5">
+    android:versionCode="6"
+    android:versionName="0.6">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
 
@@ -57,6 +57,8 @@
                 <data android:host="disk.yandex.ru" />
                 <data android:host="disk.yandex.com" />
                 <data android:host="yadi.sk" />
+                <data android:host="mega.nz" />
+                <data android:host="mega.co.nz" />
             </intent-filter>
         </activity>
         <receiver

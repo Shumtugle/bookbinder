@@ -64,6 +64,21 @@ final class Library {
     /** A kind of link that is known but not read yet. */
     static final int LATER = 7;
 
+    /** Sorts the sealed-folder service's own refusal numbers into what the listener needs to know. */
+    static int classifySealed(int code) {
+        switch (code) {
+            case -9:
+            case -11:
+            case -16:
+                return DEAD;
+            case -4:
+            case -17:
+                return SPENT;
+            default:
+                return REFUSED;
+        }
+    }
+
     /** Sorts a server's answer by status into what the listener needs to know. */
     static int classifyStatus(int status) {
         if (status == 404 || status == 410) {
@@ -91,6 +106,36 @@ final class Library {
                 InputStream in = c.getInputStream();
                 try {
                     return new String(head(in, 8 * 1024 * 1024), "UTF-8");
+                } finally {
+                    in.close();
+                }
+            } finally {
+                c.disconnect();
+            }
+        }
+
+        @Override
+        public String post(URL u, String body) throws IOException {
+            HttpURLConnection c = (HttpURLConnection) u.openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(60000);
+            c.setDoOutput(true);
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            try {
+                OutputStream out = c.getOutputStream();
+                try {
+                    out.write(body.getBytes("UTF-8"));
+                } finally {
+                    out.close();
+                }
+                int code = c.getResponseCode();
+                if (code >= 400) {
+                    throw new Sources.Refused(code, "http " + code);
+                }
+                InputStream in = c.getInputStream();
+                try {
+                    return new String(head(in, 16 * 1024 * 1024), "UTF-8");
                 } finally {
                     in.close();
                 }
@@ -503,7 +548,8 @@ final class Library {
         }
         if (l.kind != Link.CODE) {
             try {
-                String body = l.kind == Link.DISK ? Sources.disk(web, l.text, l.code) : Sources.web(web, l.text, l.code);
+                String body = l.kind == Link.DISK ? Sources.disk(web, l.text, l.code)
+                    : l.kind == Link.SEALED ? Mega.folder(web, l.text, l.code) : Sources.web(web, l.text, l.code);
                 Object meta = Json.obj(Json.parse(body), "metadata");
                 p.found = mark(Shelf.read(meta), l.code);
                 p.name = Json.str(meta, "name");
@@ -513,6 +559,10 @@ final class Library {
                 p.error = p.found.isEmpty() ? "no sound files" : null;
             } catch (Sources.Refused r) {
                 p.state = classifyStatus(r.status);
+                p.detail = r.getMessage();
+                p.error = r.getMessage();
+            } catch (Mega.Refused r) {
+                p.state = classifySealed(r.code);
                 p.detail = r.getMessage();
                 p.error = r.getMessage();
             } catch (Exception e) {
@@ -1043,6 +1093,18 @@ final class Library {
         if (l != null && l.kind == Link.WEB) {
             return new URL(ch.ref);
         }
+        if (l != null && l.kind == Link.SEALED) {
+            try {
+                return Mega.address(web, l.text, ch.ref);
+            } catch (Mega.Refused r) {
+                int k = classifySealed(r.code);
+                if (k != REFUSED) {
+                    prefs.edit().putInt("state:" + code, k).apply();
+                    tell();
+                }
+                throw r;
+            }
+        }
         if (l != null && l.kind == Link.DISK) {
             try {
                 return Sources.diskFile(web, l.text, ch.ref);
@@ -1099,22 +1161,27 @@ final class Library {
             have = 0;
         }
         if (ch.size <= 0 || have < ch.size) {
-            HttpURLConnection c = (HttpURLConnection) address(b, ch).openConnection();
+            boolean sealed = sealed(b);
+            URL where = address(b, ch);
+            HttpURLConnection c = (HttpURLConnection) (sealed ? Mega.from(where, have, ch.size) : where).openConnection();
             c.setConnectTimeout(15000);
             c.setReadTimeout(30000);
-            if (have > 0) {
+            if (have > 0 && !sealed) {
                 c.setRequestProperty("Range", "bytes=" + have + "-");
             }
             int code = c.getResponseCode();
             if (code != 200 && code != 206) {
                 c.disconnect();
+                if (classifyStatus(code) == SPENT) {
+                    prefs.edit().putInt("state:" + b.source, SPENT).apply();
+                }
                 throw new IOException("http " + code);
             }
-            if (code == 200) {
+            if (code == 200 && !sealed) {
                 have = 0;
             }
             long total = ch.size > 0 ? ch.size : (have + Math.max(0, c.getContentLength()));
-            InputStream in = c.getInputStream();
+            InputStream in = sealed ? Mega.open(c.getInputStream(), ch.ref, have) : c.getInputStream();
             OutputStream out = new FileOutputStream(part, have > 0);
             byte[] buf = new byte[64 * 1024];
             long got = have;
@@ -1215,14 +1282,15 @@ final class Library {
                             return;
                         }
                         where = address(book, first);
-                        head = range(where, 256 * 1024);
+                        head = sealed(book) ? sealedHead(where, first, 256 * 1024) : range(where, 256 * 1024);
                     }
                     int whole = Tags.length(head);
                     if (whole > head.length) {
                         int want = Math.min(whole, 4 * 1024 * 1024);
                         head = local(first, want);
                         if (head == null && !book.source.isEmpty()) {
-                            head = range(where != null ? where : address(book, first), want);
+                            URL at = where != null ? where : address(book, first);
+                            head = sealed(book) ? sealedHead(at, first, want) : range(at, want);
                         }
                     }
                     byte[] pic = head == null ? null : Tags.picture(head);
@@ -1271,6 +1339,28 @@ final class Library {
             }
         } catch (IOException e) {
             return null;
+        }
+    }
+
+    private boolean sealed(Shelf.Book b) {
+        Link l = Link.parse(prefs.getString("link:" + b.source, b.source));
+        return l != null && l.kind == Link.SEALED;
+    }
+
+    /** The head of a sealed file: the range is asked in the address, the bytes opened from the start. */
+    private static byte[] sealedHead(URL address, Shelf.Chapter ch, int bytes) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(address.toString() + "/0-" + (bytes - 1)).openConnection();
+        c.setConnectTimeout(15000);
+        c.setReadTimeout(30000);
+        try {
+            InputStream in = Mega.open(c.getInputStream(), ch.ref, 0);
+            try {
+                return head(in, bytes);
+            } finally {
+                in.close();
+            }
+        } finally {
+            c.disconnect();
         }
     }
 

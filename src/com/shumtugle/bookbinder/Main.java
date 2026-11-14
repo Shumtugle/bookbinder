@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.5";
+    static final String VERSION = "0.6";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
