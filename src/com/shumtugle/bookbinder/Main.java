@@ -42,11 +42,11 @@ import java.util.Locale;
  * Two screens in one window, built in code. The library: the books of the
  * shared folder, each with its cover and how far it has been heard. The
  * book: its cover, the keys, and its chapters in the order of their
- * numbers. Light, whatever the phone's theme: a page, not a night sky.
+ * numbers. Paper by default; light or dark, palette and corners are chosen in the settings.
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.6.3";
+    static final String VERSION = "0.7.0";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -57,6 +57,8 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     static int ACCENT;
     static int ACCENT_PALE;
     static boolean dark;
+    /** How much of the usual corner radius the chosen look keeps. */
+    static float round = 1f;
 
     /** The application's name, as the widget says it. */
     static final String APP = "Bookbinder";
@@ -65,7 +67,8 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
 
     private void paint() {
         dark = Look.dark(this);
-        int[] col = Look.colors(dark);
+        int[] col = Look.colors(this);
+        round = Look.roundness(this);
         PAPER = col[Look.PAPER];
         CARD = col[Look.CARD];
         INK = col[Look.INK];
@@ -358,6 +361,10 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         Play.listen(this);
         /* The window lives for days; the folder may have grown since it was last asked. */
         lib.refreshIfOlder(10 * 60 * 1000L);
+        /* The wallpaper may have changed while the window slept, and its colours with it. */
+        if ("wallpaper".equals(Places.palette(this)) && Look.colors(this)[Look.ACCENT] != ACCENT) {
+            rebuild();
+        }
         lib.check();
         if (lib.blocked() && checkSelfPermission(Store.readPermission()) == PackageManager.PERMISSION_GRANTED) {
             lib.unblock();
@@ -833,6 +840,24 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
             }
         }));
         look.addView(line());
+        look.addView(choice(Words.s("palette"), Words.s("palette_" + Places.palette(this)), new Runnable() {
+            @Override
+            public void run() {
+                String p = Places.palette(Main.this);
+                Places.palette(Main.this, "paper".equals(p) ? "warm" : "warm".equals(p) ? "wallpaper" : "paper");
+                rebuild();
+            }
+        }));
+        look.addView(line());
+        look.addView(choice(Words.s("corners"), Words.s("corners_" + Places.corners(this)), new Runnable() {
+            @Override
+            public void run() {
+                String k = Places.corners(Main.this);
+                Places.corners(Main.this, "soft".equals(k) ? "round" : "round".equals(k) ? "sharp" : "soft");
+                rebuild();
+            }
+        }));
+        look.addView(line());
         look.addView(choice(Words.s("shelf"), Words.s("shelf_" + Places.shelf(this)), new Runnable() {
             @Override
             public void run() {
@@ -860,6 +885,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
                     fillSettings();
                 }
             }));
+        look.addView(sample());
         look.addView(line());
         look.addView(choice(Words.s("language"), Words.s("lang_name"), new Runnable() {
             @Override
@@ -948,6 +974,18 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         h.setLetterSpacing(0.08f);
         h.setPadding(dp(6), dp(20), 0, dp(8));
         settingsList.addView(h);
+    }
+
+    /** The line widget as it would look now, drawn by the widget's own code: theme, corners and ground. */
+    private View sample() {
+        float d = getResources().getDisplayMetrics().density;
+        int w = getResources().getDisplayMetrics().widthPixels - dp(60);
+        int h = dp(72);
+        ImageView v = new ImageView(this);
+        v.setImageBitmap(Widget.lineFace(this, w, h, d));
+        v.setPadding(dp(8), dp(4), dp(8), dp(12));
+        v.setContentDescription(Words.s("widget_sample"));
+        return v;
     }
 
     private LinearLayout group() {
@@ -1558,7 +1596,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         v.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline o) {
-                o.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(radiusDp));
+                o.setRoundRect(0, 0, view.getWidth(), view.getHeight(), corner(radiusDp));
             }
         });
         v.setClipToOutline(true);
@@ -1567,7 +1605,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     private GradientDrawable card() {
         GradientDrawable g = new GradientDrawable();
         g.setColor(CARD);
-        g.setCornerRadius(dp(14));
+        g.setCornerRadius(corner(14));
         g.setStroke(dp(1), LINE);
         return g;
     }
@@ -1577,7 +1615,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         t.setPadding(dp(18), dp(10), dp(18), dp(10));
         GradientDrawable g = new GradientDrawable();
         g.setColor(strong ? ACCENT : CARD);
-        g.setCornerRadius(dp(22));
+        g.setCornerRadius(corner(22));
         if (!strong) {
             g.setStroke(dp(1), LINE);
         }
@@ -1599,6 +1637,11 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTypeface(Typeface.create(strong ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
         return t;
+    }
+
+    /** A corner radius of the usual size in dp, made as round as the chosen look wants. */
+    private int corner(float v) {
+        return dp(v * round);
     }
 
     private int dp(float v) {

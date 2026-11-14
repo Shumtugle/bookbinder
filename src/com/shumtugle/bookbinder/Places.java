@@ -69,6 +69,24 @@ final class Places {
         p(c).edit().putString("theme", v).apply();
     }
 
+    /** The palette: "paper", "warm" or "wallpaper". */
+    static String palette(Context c) {
+        return p(c).getString("palette", "paper");
+    }
+
+    static void palette(Context c, String v) {
+        p(c).edit().putString("palette", v).apply();
+    }
+
+    /** How round the corners are: "sharp", "soft" or "round". */
+    static String corners(Context c) {
+        return p(c).getString("corners", "soft");
+    }
+
+    static void corners(Context c, String v) {
+        p(c).edit().putString("corners", v).apply();
+    }
+
     /** How the shelf is shown: "cards" or "covers". */
     static String shelf(Context c) {
         return p(c).getString("shelf", "cards");

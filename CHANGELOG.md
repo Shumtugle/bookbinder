@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+- Looks: three palettes (paper, a warm theme, the wallpaper's own colours on Android 12 and later), each light or dark, and corners sharp, soft or round — for the window and the widgets alike.
+- The settings show the line widget as it looks now.
+
 ## 0.6.3
 - A record page of the big public archive opens as its download folder.
 - One file per chapter: copies in other bit rates or codecs and a whole-book file beside the chapters are left out.

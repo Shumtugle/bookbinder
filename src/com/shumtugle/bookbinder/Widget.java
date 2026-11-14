@@ -95,17 +95,23 @@ public final class Widget extends AppWidgetProvider {
         float d = c.getResources().getDisplayMetrics().density;
         int w = Math.round(wDp * d);
         int h = Math.round(hDp * d);
-        int[] col = Look.colors(Look.dark(c));
+        int[] col = Look.colors(c);
         State s = state(c);
         Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
         float side = Math.min(w, h);
         float cx = w / 2f;
         float cy = h / 2f;
-        /* The ground is a circle here: one key wants one round shape. */
+        /* The ground is a circle here: one key wants one round shape. Sharp corners make it a tile. */
         Paint g = new Paint(Paint.ANTI_ALIAS_FLAG);
         g.setColor(withAlpha(col[Look.CARD], ground(c)));
-        cv.drawCircle(cx, cy, side / 2f - d, g);
+        if (Look.roundness(c) < 1f) {
+            float half = side / 2f - d;
+            float tile = side * 0.12f;
+            cv.drawRoundRect(new RectF(cx - half, cy - half, cx + half, cy + half), tile, tile, g);
+        } else {
+            cv.drawCircle(cx, cy, side / 2f - d, g);
+        }
         float ring = side * 0.40f;
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setStyle(Paint.Style.STROKE);
@@ -230,16 +236,18 @@ public final class Widget extends AppWidgetProvider {
 
     // ------------------------------------------------------------ drawing
 
-    private static Bitmap lineFace(Context c, int w, int h, float d) {
-        int[] col = Look.colors(Look.dark(c));
+    /** The line's face; also shown in the settings as a live sample of the chosen look. */
+    static Bitmap lineFace(Context c, int w, int h, float d) {
+        int[] col = Look.colors(c);
         State s = state(c);
         Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
+        float k = Look.roundness(c);
         float pad = 8 * d;
-        ground(cv, w, h, Math.min(22 * d, h / 2f), col, ground(c));
+        ground(cv, w, h, Math.min(22 * d * k, h / 2f), col, ground(c));
         float side = h - 2 * pad;
         float openW = w * LINE_OPEN;
-        cover(c, cv, s.book, pad, pad, side, 10 * d, col);
+        cover(c, cv, s.book, pad, pad, side, 10 * d * k, col);
         float tx = pad + side + 10 * d;
         float tw = openW - tx - 4 * d;
         float sp = c.getResources().getDisplayMetrics().scaledDensity * (d / c.getResources().getDisplayMetrics().density);
@@ -260,7 +268,7 @@ public final class Widget extends AppWidgetProvider {
         float subBase = top + titleH + gap + 12 * sp * 0.92f;
         text(cv, sub, tx, subBase, tw, 12 * sp, col[Look.SOFT], false);
         if (withBar) {
-            bar(cv, tx, top + titleH + gap + subH + barGap, tw, barH, s.done, col);
+            bar(cv, tx, top + titleH + gap + subH + barGap, tw, barH, s.done, col, k);
         }
         float zw = (w - openW) / 3f;
         keys(cv, openW, 0, zw, h, s.playing, d, col);
@@ -268,15 +276,16 @@ public final class Widget extends AppWidgetProvider {
     }
 
     private static Bitmap cardFace(Context c, int w, int h, float d) {
-        int[] col = Look.colors(Look.dark(c));
+        int[] col = Look.colors(c);
         State s = state(c);
         Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
+        float k = Look.roundness(c);
         float pad = 10 * d;
-        ground(cv, w, h, 24 * d, col, ground(c));
+        ground(cv, w, h, Math.min(24 * d * k, h / 2f), col, ground(c));
         float leftW = w * CARD_COVER;
         float side = Math.min(leftW - 2 * pad, h - 2 * pad);
-        cover(c, cv, s.book, (leftW - side) / 2f + pad / 2f, (h - side) / 2f, side, 14 * d, col);
+        cover(c, cv, s.book, (leftW - side) / 2f + pad / 2f, (h - side) / 2f, side, 14 * d * k, col);
         float keysH = CARD_KEYS_DP * d;
         float x0 = leftW + 4 * d;
         float tw = w - x0 - pad;
@@ -301,7 +310,7 @@ public final class Widget extends AppWidgetProvider {
                 text(cv, Words.f("chapter_of", s.index + 1, s.book.chapters.size()), x0, y, tw, 13 * sp,
                     col[Look.ACCENT], true);
             }
-            bar(cv, x0, h - keysH - 4 * d, tw, 3 * d, s.done, col);
+            bar(cv, x0, h - keysH - 4 * d, tw, 3 * d, s.done, col, k);
         }
         float zw = (w - leftW) / 3f;
         keys(cv, leftW, h - keysH, zw, keysH, s.playing, d, col);
@@ -368,13 +377,15 @@ public final class Widget extends AppWidgetProvider {
         Mark.draw(cv, Mark.ON, x0 + zw * 2.5f, cy, small, col[Look.INK]);
     }
 
-    private static void bar(Canvas cv, float x, float y, float w, float h, double done, int[] col) {
+    /** The progress line; its ends are as round as the corners, never rounder than half its height. */
+    private static void bar(Canvas cv, float x, float y, float w, float h, double done, int[] col, float k) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float r = h / 2f * Math.min(1f, k);
         p.setColor(col[Look.LINE]);
-        cv.drawRoundRect(new RectF(x, y, x + w, y + h), h / 2f, h / 2f, p);
+        cv.drawRoundRect(new RectF(x, y, x + w, y + h), r, r, p);
         if (done > 0) {
             p.setColor(col[Look.ACCENT]);
-            cv.drawRoundRect(new RectF(x, y, x + (float) (w * Math.min(1, done)), y + h), h / 2f, h / 2f, p);
+            cv.drawRoundRect(new RectF(x, y, x + (float) (w * Math.min(1, done)), y + h), r, r, p);
         }
     }
 
