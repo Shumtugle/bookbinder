@@ -71,3 +71,4 @@ empty_hint=Положи папки со звуком в %1$s, добавь св�
 shelf=Полка
 shelf_cards=Карточки
 shelf_covers=Большие обложки
+widget_empty=Выбери книгу

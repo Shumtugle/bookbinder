@@ -71,3 +71,4 @@ empty_hint=Laita äänitiedostokansioita kohteeseen %1$s, lisää oma kansio tai
 shelf=Hylly
 shelf_cards=Kortit
 shelf_covers=Isot kannet
+widget_empty=Valitse kirja

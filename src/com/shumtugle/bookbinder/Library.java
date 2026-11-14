@@ -153,6 +153,7 @@ final class Library {
                 locals = found;
                 merge();
                 tell();
+                Widget.refresh(app);
                 for (Shelf.Book b : found) {
                     cover(b);
                 }

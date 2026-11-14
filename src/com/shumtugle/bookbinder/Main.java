@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.1";
+    static final String VERSION = "0.2";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -58,27 +58,21 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     static int ACCENT_PALE;
     static boolean dark;
 
+    /** The application's name, as the widget says it. */
+    static final String APP = "Bookbinder";
+    /** A book to open at once, from the widget. */
+    static final String SHOW_BOOK = "show_book";
+
     private void paint() {
-        String t = Places.theme(this);
-        dark = "dark".equals(t) || "system".equals(t)
-            && (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        if (dark) {
-            PAPER = 0xFF151411;
-            CARD = 0xFF201E1A;
-            INK = 0xFFEDE8DE;
-            SOFT = 0xFF9C958A;
-            LINE = 0xFF302D27;
-            ACCENT = 0xFF86C8B6;
-            ACCENT_PALE = 0xFF233631;
-        } else {
-            PAPER = 0xFFF6F3EC;
-            CARD = 0xFFFFFFFF;
-            INK = 0xFF22201C;
-            SOFT = 0xFF7D776C;
-            LINE = 0xFFE7E1D5;
-            ACCENT = 0xFF2F6B5F;
-            ACCENT_PALE = 0xFFDCE8E3;
-        }
+        dark = Look.dark(this);
+        int[] col = Look.colors(dark);
+        PAPER = col[Look.PAPER];
+        CARD = col[Look.CARD];
+        INK = col[Look.INK];
+        SOFT = col[Look.SOFT];
+        LINE = col[Look.LINE];
+        ACCENT = col[Look.ACCENT];
+        ACCENT_PALE = col[Look.ACCENT_PALE];
         if (frame != null) {
             frame.setBackgroundColor(PAPER);
         }
@@ -108,6 +102,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
 
     /** Builds every screen again — after the theme or the language changed — and comes back to where it was. */
     private void rebuild() {
+        Widget.refresh(this);
         Shelf.Book was = shown;
         boolean inSettings = settingsOn;
         build();
@@ -208,6 +203,14 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     /** A link shared to the application, or opened with it, is a book put on the shelf. */
     private void take(Intent i) {
         if (i == null) {
+            return;
+        }
+        long show = i.getLongExtra(SHOW_BOOK, -1);
+        if (show != -1 && lib.book(show) != null) {
+            i.removeExtra(SHOW_BOOK);
+            settingsOn = false;
+            settingsView.setVisibility(View.GONE);
+            showBook(lib.book(show));
             return;
         }
         String text = null;

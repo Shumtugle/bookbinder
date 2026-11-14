@@ -71,3 +71,4 @@ empty_hint=Put folders of sound files into %1$s, add a folder of your own, or gi
 shelf=Shelf
 shelf_cards=Cards
 shelf_covers=Big covers
+widget_empty=Pick a book

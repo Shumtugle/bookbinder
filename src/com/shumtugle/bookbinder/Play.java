@@ -101,6 +101,7 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
     private AudioManager audio;
     private AudioFocusRequest focus;
     private int sleep;
+    private boolean hadCover;
     private long sleepAt;
 
     // ------------------------------------------------------------ life
@@ -414,6 +415,12 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
 
     @Override
     public void changed() {
+        /* A cover arrived for the book on the widget: draw it there. */
+        boolean cover = book != null && lib.cover(book) != null;
+        if (cover != hadCover) {
+            hadCover = cover;
+            Widget.refresh(this);
+        }
         /* A chapter arrived: if it is the one waited for, it is opened now. */
         Shelf.Chapter ch = chapter();
         if (ch != null && player == null && lib.ready(ch)) {
@@ -834,6 +841,7 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
 
     private void told() {
         state();
+        Widget.refresh(this);
         for (Ear e : new ArrayList<Ear>(ears)) {
             e.heard();
         }
