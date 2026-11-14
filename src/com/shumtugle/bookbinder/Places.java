@@ -1,0 +1,97 @@
+package com.shumtugle.bookbinder;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+/**
+ * Where each book was left: which chapter, and how far into it. A chapter is
+ * named by its id in the shared folder, so renaming a file or adding one in
+ * the middle does not move the listener. Also the book that played last,
+ * the pace, and the language.
+ */
+final class Places {
+
+    private Places() {
+    }
+
+    private static SharedPreferences p(Context c) {
+        return c.getSharedPreferences("places", Context.MODE_PRIVATE);
+    }
+
+    static long chapter(Context c, long book) {
+        return p(c).getLong("c" + book, -1);
+    }
+
+    static long position(Context c, long book) {
+        return p(c).getLong("p" + book, 0);
+    }
+
+    static boolean finished(Context c, long book) {
+        return p(c).getBoolean("f" + book, false);
+    }
+
+    static void put(Context c, long book, long chapter, long position) {
+        p(c).edit().putLong("c" + book, chapter).putLong("p" + book, position)
+            .putBoolean("f" + book, false).putLong("t" + book, System.currentTimeMillis()).apply();
+    }
+
+    /** When the book was last heard; 0 if never. */
+    static long touched(Context c, long book) {
+        return p(c).getLong("t" + book, 0);
+    }
+
+    static void finish(Context c, long book) {
+        p(c).edit().putBoolean("f" + book, true).apply();
+    }
+
+    static long last(Context c) {
+        return p(c).getLong("last", -1);
+    }
+
+    static void last(Context c, long book) {
+        p(c).edit().putLong("last", book).apply();
+    }
+
+    static float pace(Context c) {
+        return p(c).getFloat("pace", 1f);
+    }
+
+    static void pace(Context c, float v) {
+        p(c).edit().putFloat("pace", v).apply();
+    }
+
+    /** "light", "dark" or "system". */
+    static String theme(Context c) {
+        return p(c).getString("theme", "light");
+    }
+
+    static void theme(Context c, String v) {
+        p(c).edit().putString("theme", v).apply();
+    }
+
+    /** How the shelf is shown: "cards" or "covers". */
+    static String shelf(Context c) {
+        return p(c).getString("shelf", "cards");
+    }
+
+    static void shelf(Context c, String v) {
+        p(c).edit().putString("shelf", v).apply();
+    }
+
+    /** Seconds a book steps back when taken up after a pause. */
+    static int rollback(Context c) {
+        return p(c).getInt("rollback", 3);
+    }
+
+    static void rollback(Context c, int v) {
+        p(c).edit().putInt("rollback", v).apply();
+    }
+
+    static String language(Context c) {
+        return p(c).getString("lang", "");
+    }
+
+    static void language(Context c, String v) {
+        p(c).edit().putString("lang", v).apply();
+    }
+}
