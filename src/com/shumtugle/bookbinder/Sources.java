@@ -186,6 +186,7 @@ final class Sources {
         boolean first = true;
         Matcher m = HREF.matcher(page);
         ArrayList<URL> folders = new ArrayList<URL>();
+        ArrayList<URL> sounds = new ArrayList<URL>();
         while (m.find()) {
             String h = m.group(1).trim().replace("&amp;", "&");
             if (h.isEmpty() || h.startsWith("?") || h.startsWith("mailto:") || h.startsWith("javascript:")) {
@@ -207,10 +208,11 @@ final class Sources {
                 }
                 continue;
             }
-            String n = lastName(u);
-            if (!Shelf.sound(n, null)) {
-                continue;
+            if (Shelf.sound(lastName(u), null)) {
+                sounds.add(u);
             }
+        }
+        for (URL u : oneOfEach(sounds)) {
             long size = -1;
             try {
                 size = f.length(u);
@@ -221,7 +223,7 @@ final class Sources {
                 out.append(',');
             }
             first = false;
-            out.append(file(key, n, u.toString(), Math.max(0, size), null));
+            out.append(file(key, lastName(u), u.toString(), Math.max(0, size), null));
         }
         for (URL u : folders) {
             if (!first) {
@@ -231,6 +233,48 @@ final class Sources {
             webFolder(f, top, u, key, depth + 1, seen, out);
         }
         out.append("]}");
+    }
+
+    /**
+     * One file for each chapter. Archives keep a chapter in several forms —
+     * a smaller copy marked with its bit rate, the original, another codec —
+     * and the whole book again in one long file. A chapter is known by its
+     * name without the mark and the ending; the plainest common form wins,
+     * and a whole-book file is left out where the chapters are there too.
+     */
+    static ArrayList<URL> oneOfEach(ArrayList<URL> sounds) {
+        java.util.LinkedHashMap<String, URL> best = new java.util.LinkedHashMap<String, URL>();
+        boolean chapters = false;
+        for (URL u : sounds) {
+            if (!lastName(u).toLowerCase(Locale.ROOT).endsWith(".m4b")) {
+                chapters = true;
+            }
+        }
+        for (URL u : sounds) {
+            String n = lastName(u).toLowerCase(Locale.ROOT);
+            if (chapters && n.endsWith(".m4b")) {
+                continue;
+            }
+            String stem = n.replaceAll("\\.[a-z0-9]+$", "").replaceAll("_(\\d+kb|vbr|lq|hq)$", "");
+            URL had = best.get(stem);
+            if (had == null || rank(u) < rank(had)) {
+                best.put(stem, u);
+            }
+        }
+        return new ArrayList<URL>(best.values());
+    }
+
+    /** Lower is better: the original mp3, then a marked mp3, then the other forms. */
+    private static int rank(URL u) {
+        String n = lastName(u).toLowerCase(Locale.ROOT);
+        boolean marked = n.matches(".*_(\\d+kb|vbr|lq|hq)\\.[a-z0-9]+$");
+        if (n.endsWith(".mp3")) {
+            return marked ? 1 : 0;
+        }
+        if (n.endsWith(".m4a") || n.endsWith(".m4b") || n.endsWith(".aac")) {
+            return marked ? 3 : 2;
+        }
+        return marked ? 5 : 4;
     }
 
     /** The last part of an address's path, decoded: a folder's or a file's name. */

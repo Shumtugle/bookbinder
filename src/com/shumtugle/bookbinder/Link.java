@@ -148,6 +148,21 @@ final class Link {
             if (host.startsWith("disk.yandex.") || host.equals("yadi.sk") || host.endsWith(".yadi.sk")) {
                 return new Link(DISK, "y" + mark(plain), plain, false);
             }
+            /* A record page of the big public archive: its files live under the download path. */
+            if (host.equals("archive.org") || host.equals("www.archive.org")) {
+                int at2 = plain.toLowerCase(Locale.ROOT).indexOf("/details/");
+                if (at2 >= 0) {
+                    String id = plain.substring(at2 + "/details/".length());
+                    int end = 0;
+                    while (end < id.length() && "/?#".indexOf(id.charAt(end)) < 0) {
+                        end++;
+                    }
+                    id = id.substring(0, end);
+                    if (!id.isEmpty()) {
+                        plain = plain.substring(0, plain.indexOf("archive.org") + "archive.org".length()) + "/download/" + id + "/";
+                    }
+                }
+            }
             return new Link(WEB, "h" + mark(plain), plain, false);
         }
         /* A bare code of the first kind. */

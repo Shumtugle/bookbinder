@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.3
+- A record page of the big public archive opens as its download folder.
+- One file per chapter: copies in other bit rates or codecs and a whole-book file beside the chapters are left out.
+
 ## 0.6.2
 - Counted nouns take the language's own forms: one, a few, many.
 
