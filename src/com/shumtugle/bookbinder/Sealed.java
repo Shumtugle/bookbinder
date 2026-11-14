@@ -113,18 +113,31 @@ final class Sealed {
         HashMap<String, String> names = new HashMap<String, String>();
         HashMap<String, byte[]> keys = new HashMap<String, byte[]>();
         String root = null;
+        int opened = 0;
         for (Object n : nodes) {
             String h = Json.str(n, "h");
             String p = Json.str(n, "p");
-            byte[] k = nodeKey(Json.str(n, "k"), s.key);
+            byte[] k = null;
+            String name = null;
+            /* A node's key may come in several "handle:key" pairs; the right one opens its name. */
+            for (byte[] cand : nodeKeys(Json.str(n, "k"), s.key)) {
+                String tried = attrName(Json.str(n, "a"), cand.length == 32 ? fold(cand) : cand);
+                if (tried != null) {
+                    k = cand;
+                    name = tried;
+                    break;
+                }
+            }
             if (h == null || k == null) {
                 continue;
             }
+            opened++;
             keys.put(h, k);
-            names.put(h, attrName(Json.str(n, "a"), k.length == 32 ? fold(k) : k));
+            names.put(h, name);
             if (h.equals(s.handle) || root == null && Json.num(n, "t", 0) == 1 && !hasParentIn(nodes, p)) {
                 root = h;
             }
+
             if (p != null) {
                 ArrayList<Object> list = kids.get(p);
                 if (list == null) {
@@ -133,6 +146,9 @@ final class Sealed {
                 }
                 list.add(n);
             }
+        }
+        if (root == null && !nodes.isEmpty() && opened == 0) {
+            throw new IOException("the key in the link does not open this folder (" + nodes.size() + " entries)");
         }
         if (root == null) {
             throw new Refused(-9);
@@ -193,28 +209,28 @@ final class Sealed {
             + ",\"size\":" + size + ",\"ref\":" + Json.quote(h + "|" + b64e(key)) + "}";
     }
 
-    /** "owner:key" — the key part, opened block by block with the folder's key. */
-    private static byte[] nodeKey(String k, byte[] folderKey) {
+    /** Every "handle:key" pair of a node, each key opened block by block with the folder's key. */
+    private static ArrayList<byte[]> nodeKeys(String k, byte[] folderKey) {
+        ArrayList<byte[]> out = new ArrayList<byte[]>();
         if (k == null) {
-            return null;
+            return out;
         }
-        int colon = k.indexOf(':');
-        String part = colon >= 0 ? k.substring(colon + 1) : k;
-        int slash = part.indexOf('/');
-        if (slash >= 0) {
-            part = part.substring(0, slash);
-        }
-        try {
-            byte[] enc = b64(part);
-            if (enc.length != 16 && enc.length != 32) {
-                return null;
+        for (String pair : k.split("/")) {
+            int colon = pair.indexOf(':');
+            String part = colon >= 0 ? pair.substring(colon + 1) : pair;
+            try {
+                byte[] enc = b64(part);
+                if (enc.length != 16 && enc.length != 32) {
+                    continue;
+                }
+                Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
+                c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(folderKey, "AES"));
+                out.add(c.doFinal(enc));
+            } catch (Exception broken) {
+                /* A pair this key does not open: the next one may. */
             }
-            Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
-            c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(folderKey, "AES"));
-            return c.doFinal(enc);
-        } catch (Exception broken) {
-            return null;
         }
+        return out;
     }
 
     /** A name from the encrypted attributes: zero vector, chained blocks, a four-letter mark and a small object. */

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.1
+- Sealed folders: a node's key may come in several handle:key pairs; each is tried and the one that opens the name is kept. A key that opens nothing is reported as such instead of "no sound files".
+
 ## 0.6
 - Shared folders whose key travels in the link: names, file keys and the files themselves are decrypted on the phone; a broken fetch goes on from where it stopped, a cover is read from the head of the first chapter. Both forms of such a link work, and a link to one file is a book of one chapter.
 
