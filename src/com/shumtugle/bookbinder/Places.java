@@ -78,6 +78,15 @@ final class Places {
         p(c).edit().putString("shelf", v).apply();
     }
 
+    /** How solid the widgets' ground is, in percent: 100 solid, 0 none. */
+    static int widgetGround(Context c) {
+        return p(c).getInt("widgetGround", 100);
+    }
+
+    static void widgetGround(Context c, int v) {
+        p(c).edit().putInt("widgetGround", v).apply();
+    }
+
     /** Seconds a book steps back when taken up after a pause. */
     static int rollback(Context c) {
         return p(c).getInt("rollback", 3);

@@ -72,3 +72,5 @@ shelf=Shelf
 shelf_cards=Cards
 shelf_covers=Big covers
 widget_empty=Pick a book
+widget_ground=Widget background
+widget_ground_none=none

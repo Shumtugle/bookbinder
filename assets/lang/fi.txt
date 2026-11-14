@@ -72,3 +72,5 @@ shelf=Hylly
 shelf_cards=Kortit
 shelf_covers=Isot kannet
 widget_empty=Valitse kirja
+widget_ground=Pienoissovellusten tausta
+widget_ground_none=ei

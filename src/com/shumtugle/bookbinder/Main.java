@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.2";
+    static final String VERSION = "0.3";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -837,6 +837,25 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
                 showSettings();
             }
         }));
+        look.addView(line());
+        int ground = Places.widgetGround(this);
+        look.addView(choice(Words.s("widget_ground"), ground == 0 ? Words.s("widget_ground_none") : ground + "%",
+            new Runnable() {
+                @Override
+                public void run() {
+                    int[] steps = {100, 75, 50, 25, 0};
+                    int now = Places.widgetGround(Main.this);
+                    int at = 0;
+                    for (int i = 0; i < steps.length; i++) {
+                        if (steps[i] == now) {
+                            at = i;
+                        }
+                    }
+                    Places.widgetGround(Main.this, steps[(at + 1) % steps.length]);
+                    Widget.refresh(Main.this);
+                    fillSettings();
+                }
+            }));
         look.addView(line());
         look.addView(choice(Words.s("language"), Words.s("lang_name"), new Runnable() {
             @Override

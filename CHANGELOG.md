@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3
+- One-cell widget: play or pause, with a ring of how far the book has been heard.
+- Widget background in the settings: solid, 75, 50, 25 percent or none, for every widget.
+
 ## 0.2
 - Home screen widget: a line (cover, title, chapter, back, play, forward) that becomes a card when made taller; drawn to the exact size of its cell, only when something changes, in the application's theme and language.
 

@@ -72,3 +72,5 @@ shelf=Полка
 shelf_cards=Карточки
 shelf_covers=Большие обложки
 widget_empty=Выбери книгу
+widget_ground=Фон виджетов
+widget_ground_none=нет

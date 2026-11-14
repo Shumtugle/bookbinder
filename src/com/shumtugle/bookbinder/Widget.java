@@ -57,13 +57,86 @@ public final class Widget extends AppWidgetProvider {
     static void refresh(Context c) {
         try {
             AppWidgetManager m = AppWidgetManager.getInstance(c);
-            int[] ids = m.getAppWidgetIds(new ComponentName(c, Widget.class));
-            for (int id : ids) {
+            for (int id : m.getAppWidgetIds(new ComponentName(c, Widget.class))) {
                 draw(c, m, id);
+            }
+            for (int id : m.getAppWidgetIds(new ComponentName(c, Button.class))) {
+                drawButton(c, m, id);
             }
         } catch (Exception e) {
             Log.note("widget: " + e);
         }
+    }
+
+    /**
+     * The smallest widget: one cell, one key. Play or pause on a disc, and
+     * round it a thin ring of how far the book has been heard. Without a
+     * book, it opens the application.
+     */
+    public static final class Button extends AppWidgetProvider {
+        @Override
+        public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
+            for (int id : ids) {
+                drawButton(c, m, id);
+            }
+        }
+
+        @Override
+        public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle options) {
+            drawButton(c, m, id);
+        }
+    }
+
+    private static void drawButton(Context c, AppWidgetManager m, int id) {
+        Words.load(c);
+        Bundle o = m.getAppWidgetOptions(id);
+        int wDp = Math.max(40, o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 60));
+        int hDp = Math.max(40, o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 60));
+        float d = c.getResources().getDisplayMetrics().density;
+        int w = Math.round(wDp * d);
+        int h = Math.round(hDp * d);
+        int[] col = Look.colors(Look.dark(c));
+        State s = state(c);
+        Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(bm);
+        float side = Math.min(w, h);
+        float cx = w / 2f;
+        float cy = h / 2f;
+        /* The ground is a circle here: one key wants one round shape. */
+        Paint g = new Paint(Paint.ANTI_ALIAS_FLAG);
+        g.setColor(withAlpha(col[Look.CARD], ground(c)));
+        cv.drawCircle(cx, cy, side / 2f - d, g);
+        float ring = side * 0.40f;
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(Math.max(2f, side * 0.045f));
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setColor(col[Look.LINE]);
+        RectF arc = new RectF(cx - ring, cy - ring, cx + ring, cy + ring);
+        cv.drawArc(arc, 0, 360, false, p);
+        if (s.book != null && s.done > 0) {
+            p.setColor(col[Look.ACCENT]);
+            cv.drawArc(arc, -90, (float) (360 * Math.min(1, s.done)), false, p);
+        }
+        Paint disc = new Paint(Paint.ANTI_ALIAS_FLAG);
+        disc.setColor(col[Look.ACCENT]);
+        float r = side * 0.30f;
+        cv.drawCircle(cx, cy, r, disc);
+        Mark.draw(cv, s.playing ? Mark.PAUSE : Mark.PLAY, cx, cy, r * 1.15f, col[Look.CARD]);
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_button);
+        v.setImageViewBitmap(R.id.face, bm);
+        v.setOnClickPendingIntent(R.id.face, s.book == null ? openBook(c, null) : key(c, Play.TOGGLE, 14));
+        m.updateAppWidget(id, v);
+    }
+
+    /** How much of the ground shows, 0 to 100, from the settings. */
+    private static int ground(Context c) {
+        return Places.widgetGround(c);
+    }
+
+    private static int withAlpha(int color, int percent) {
+        int a = Math.round(((color >>> 24) & 0xFF) * Math.max(0, Math.min(100, percent)) / 100f);
+        return (a << 24) | (color & 0xFFFFFF);
     }
 
     private static void draw(Context c, AppWidgetManager m, int id) {
@@ -163,7 +236,7 @@ public final class Widget extends AppWidgetProvider {
         Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
         float pad = 8 * d;
-        ground(cv, w, h, Math.min(22 * d, h / 2f), col);
+        ground(cv, w, h, Math.min(22 * d, h / 2f), col, ground(c));
         float side = h - 2 * pad;
         float openW = w * LINE_OPEN;
         cover(c, cv, s.book, pad, pad, side, 10 * d, col);
@@ -200,7 +273,7 @@ public final class Widget extends AppWidgetProvider {
         Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
         float pad = 10 * d;
-        ground(cv, w, h, 24 * d, col);
+        ground(cv, w, h, 24 * d, col, ground(c));
         float leftW = w * CARD_COVER;
         float side = Math.min(leftW - 2 * pad, h - 2 * pad);
         cover(c, cv, s.book, (leftW - side) / 2f + pad / 2f, (h - side) / 2f, side, 14 * d, col);
@@ -235,13 +308,17 @@ public final class Widget extends AppWidgetProvider {
         return bm;
     }
 
-    private static void ground(Canvas cv, int w, int h, float r, int[] col) {
+    /** The card under the face, as solid as the settings say; with no ground at all, no edge either. */
+    private static void ground(Canvas cv, int w, int h, float r, int[] col, int percent) {
+        if (percent <= 0) {
+            return;
+        }
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(col[Look.CARD]);
+        p.setColor(withAlpha(col[Look.CARD], percent));
         cv.drawRoundRect(new RectF(0, 0, w, h), r, r, p);
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(Math.max(1f, h / 300f));
-        p.setColor(col[Look.LINE]);
+        p.setColor(withAlpha(col[Look.LINE], percent));
         cv.drawRoundRect(new RectF(0.5f, 0.5f, w - 0.5f, h - 0.5f), r, r, p);
     }
 
