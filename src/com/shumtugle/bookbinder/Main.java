@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.6.1";
+    static final String VERSION = "0.6.2";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -234,7 +234,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
             public void told(int state, String detail, int books, int chapters) {
                 String title = name != null && !name.isEmpty() ? name : "Bookbinder";
                 say(title, state == Library.ADDED
-                    ? (books > 1 ? Words.f("r_added_many", books, chapters) : Words.f("r_added", chapters))
+                    ? (books > 1 ? Words.f("r_added_many", books, chapters) : Words.f("r_added", Words.count("chapters_n", chapters)))
                     : refusal(state, detail));
             }
         });

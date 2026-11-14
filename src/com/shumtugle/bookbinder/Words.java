@@ -74,6 +74,31 @@ final class Words {
         return v == null ? key : v;
     }
 
+    /**
+     * A number with its noun in the right form: "<key>_one", "<key>_few" or
+     * "<key>_many" from the table. The rule of forms is the language's own;
+     * a table without "few" falls back to "many".
+     */
+    static String count(String key, int n) {
+        String form;
+        if ("ru".equals(current)) {
+            int ten = n % 10;
+            int hundred = n % 100;
+            form = ten == 1 && hundred != 11 ? "one"
+                : ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14) ? "few" : "many";
+        } else {
+            form = n == 1 ? "one" : "many";
+        }
+        String v = table.get(key + "_" + form);
+        if (v == null && form.equals("few")) {
+            v = table.get(key + "_many");
+        }
+        if (v == null) {
+            v = english.get(key + "_" + (n == 1 ? "one" : "many"));
+        }
+        return String.format(Locale.ROOT, v == null ? "%1$d" : v, n);
+    }
+
     static String f(String key, Object... args) {
         return String.format(Locale.ROOT, s(key), args);
     }

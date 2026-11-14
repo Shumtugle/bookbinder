@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.2
+- Counted nouns take the language's own forms: one, a few, many.
+
 ## 0.6.1
 - Sealed folders: a node's key may come in several handle:key pairs; each is tried and the one that opens the name is kept. A key that opens nothing is reported as such instead of "no sound files".
 
