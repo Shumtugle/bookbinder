@@ -22,11 +22,11 @@ import javax.crypto.spec.SecretKeySpec;
  * Plain Java with the fetching handed in, checked on a desktop against a
  * folder sealed the same way.
  */
-final class Mega {
+final class Sealed {
 
     static final String API = "g.api.mega.co.nz";
 
-    private Mega() {
+    private Sealed() {
     }
 
     /** A link taken apart: the shared node, its key, and whether it is a folder or one file. */

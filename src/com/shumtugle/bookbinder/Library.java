@@ -549,7 +549,7 @@ final class Library {
         if (l.kind != Link.CODE) {
             try {
                 String body = l.kind == Link.DISK ? Sources.disk(web, l.text, l.code)
-                    : l.kind == Link.SEALED ? Mega.folder(web, l.text, l.code) : Sources.web(web, l.text, l.code);
+                    : l.kind == Link.SEALED ? Sealed.folder(web, l.text, l.code) : Sources.web(web, l.text, l.code);
                 Object meta = Json.obj(Json.parse(body), "metadata");
                 p.found = mark(Shelf.read(meta), l.code);
                 p.name = Json.str(meta, "name");
@@ -561,7 +561,7 @@ final class Library {
                 p.state = classifyStatus(r.status);
                 p.detail = r.getMessage();
                 p.error = r.getMessage();
-            } catch (Mega.Refused r) {
+            } catch (Sealed.Refused r) {
                 p.state = classifySealed(r.code);
                 p.detail = r.getMessage();
                 p.error = r.getMessage();
@@ -1095,8 +1095,8 @@ final class Library {
         }
         if (l != null && l.kind == Link.SEALED) {
             try {
-                return Mega.address(web, l.text, ch.ref);
-            } catch (Mega.Refused r) {
+                return Sealed.address(web, l.text, ch.ref);
+            } catch (Sealed.Refused r) {
                 int k = classifySealed(r.code);
                 if (k != REFUSED) {
                     prefs.edit().putInt("state:" + code, k).apply();
@@ -1163,7 +1163,7 @@ final class Library {
         if (ch.size <= 0 || have < ch.size) {
             boolean sealed = sealed(b);
             URL where = address(b, ch);
-            HttpURLConnection c = (HttpURLConnection) (sealed ? Mega.from(where, have, ch.size) : where).openConnection();
+            HttpURLConnection c = (HttpURLConnection) (sealed ? Sealed.from(where, have, ch.size) : where).openConnection();
             c.setConnectTimeout(15000);
             c.setReadTimeout(30000);
             if (have > 0 && !sealed) {
@@ -1181,7 +1181,7 @@ final class Library {
                 have = 0;
             }
             long total = ch.size > 0 ? ch.size : (have + Math.max(0, c.getContentLength()));
-            InputStream in = sealed ? Mega.open(c.getInputStream(), ch.ref, have) : c.getInputStream();
+            InputStream in = sealed ? Sealed.open(c.getInputStream(), ch.ref, have) : c.getInputStream();
             OutputStream out = new FileOutputStream(part, have > 0);
             byte[] buf = new byte[64 * 1024];
             long got = have;
@@ -1353,7 +1353,7 @@ final class Library {
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);
         try {
-            InputStream in = Mega.open(c.getInputStream(), ch.ref, 0);
+            InputStream in = Sealed.open(c.getInputStream(), ch.ref, 0);
             try {
                 return head(in, bytes);
             } finally {
