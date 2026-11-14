@@ -37,25 +37,72 @@ final class Link {
         this.second = eu ? US : EU;
     }
 
+    /*
+     * A link usually comes wrapped: "The folder is here: «<link>»", a line
+     * break, a word of description, a full stop after it. Every address in
+     * the text is taken out and stripped of the punctuation that clings to
+     * it; a folder of a known kind wins over a plain web address, and the
+     * earlier wins among equals.
+     */
+    private static final java.util.regex.Pattern ADDRESS = java.util.regex.Pattern.compile(
+        "(?i)(?:https?:/{2}|magnet:\\?)[^\\s<>\"'\u00ab\u00bb\u201c\u201d\u201e\u2018\u2019]+");
+    private static final String CLINGS = ".,;:!?)]}>\u2026\u00bb\u201d\u2019*_";
+
+    /** Every address in a text, in order, without the punctuation around it. */
+    static java.util.ArrayList<String> addresses(String text) {
+        java.util.ArrayList<String> out = new java.util.ArrayList<String>();
+        java.util.regex.Matcher m = ADDRESS.matcher(text);
+        while (m.find()) {
+            String a = m.group();
+            while (!a.isEmpty() && CLINGS.indexOf(a.charAt(a.length() - 1)) >= 0) {
+                /* A closing bracket stays when the address itself opened one. */
+                char last = a.charAt(a.length() - 1);
+                if (last == ')' && a.indexOf('(') >= 0 && count(a, '(') >= count(a, ')')) {
+                    break;
+                }
+                a = a.substring(0, a.length() - 1);
+            }
+            if (a.length() > 10) {
+                out.add(a);
+            }
+        }
+        return out;
+    }
+
+    private static int count(String s, char c) {
+        int n = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == c) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** Null when nothing in the text looks like a link or a code. */
     static Link parse(String text) {
         if (text == null) {
             return null;
         }
-        String t = text.trim();
-        int sp = t.toLowerCase(Locale.ROOT).indexOf("http");
-        int mg = t.toLowerCase(Locale.ROOT).indexOf("magnet:");
-        if (mg >= 0 && (sp < 0 || mg < sp)) {
-            sp = mg;
+        Link best = null;
+        for (String a : addresses(text)) {
+            Link l = one(a);
+            if (l != null && (best == null || best.kind == WEB && l.kind != WEB)) {
+                best = l;
+            }
         }
-        if (sp > 0) {
-            t = t.substring(sp);
+        if (best != null) {
+            return best;
         }
-        int ws = firstSpace(t);
-        if (ws > 0) {
-            t = t.substring(0, ws);
-        }
+        return one(text.trim());
+    }
+
+    /** One address, or a bare code, already cut out of the text. */
+    private static Link one(String t) {
         String low = t.toLowerCase(Locale.ROOT);
+        if (low.indexOf(' ') >= 0 || low.indexOf('\n') >= 0) {
+            return null;
+        }
         if (low.startsWith("magnet:")) {
             return new Link(LATER, "x" + mark(t), t, false);
         }
@@ -127,15 +174,6 @@ final class Link {
             a.update(s.getBytes());
         }
         return Long.toHexString(a.getValue()) + Integer.toHexString(s.length());
-    }
-
-    private static int firstSpace(String t) {
-        for (int i = 0; i < t.length(); i++) {
-            if (Character.isWhitespace(t.charAt(i))) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     private static boolean codeChar(char c) {

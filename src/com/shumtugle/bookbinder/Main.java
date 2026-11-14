@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.4";
+    static final String VERSION = "0.5";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -721,7 +721,9 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
                 if (clip != null && clip.getItemCount() > 0) {
                     CharSequence s = clip.getItemAt(0).coerceToText(Main.this);
                     if (s != null) {
-                        field.setText(s);
+                        /* Only the link goes into the field, not the words around it. */
+                        Link found = Link.parse(s.toString());
+                        field.setText(found != null ? found.text : s);
                         field.setSelection(field.getText().length());
                     }
                 }

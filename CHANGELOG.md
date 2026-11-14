@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5
+- A link is taken out of whatever text it came in: quotes, line breaks, words around it and punctuation stuck to it are left behind; a folder of a known kind wins over a plain web address. "Paste" puts only the link into the field.
+
 ## 0.4
 - Two more kinds of link: a public disk folder read through its open listing service, and a plain web folder — a server page that lists its files (a single sound file's address works too). Plain-text addresses are allowed for servers at home.
 - Links of kinds not read yet are recognised and answered with "not supported yet" instead of "not a link".
