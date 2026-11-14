@@ -74,3 +74,5 @@ shelf_covers=Isot kannet
 widget_empty=Valitse kirja
 widget_ground=Pienoissovellusten tausta
 widget_ground_none=ei
+r_later=Tällaisia linkkejä ei vielä tueta.
+link_text_more=Toimivat: kahden pilvilevyn jaetut kansiot sekä verkkopalvelimen kansio, joka näyttää tiedostolistansa.

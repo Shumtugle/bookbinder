@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4
+- Two more kinds of link: a public disk folder read through its open listing service, and a plain web folder — a server page that lists its files (a single sound file's address works too). Plain-text addresses are allowed for servers at home.
+- Links of kinds not read yet are recognised and answered with "not supported yet" instead of "not a link".
+
 ## 0.3
 - One-cell widget: play or pause, with a ring of how far the book has been heard.
 - Widget background in the settings: solid, 75, 50, 25 percent or none, for every widget.

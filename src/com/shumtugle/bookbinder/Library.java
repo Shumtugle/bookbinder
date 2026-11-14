@@ -61,6 +61,57 @@ final class Library {
     static final int EMPTY = 5;
     /** Any other refusal; the detail holds the service's own words. */
     static final int REFUSED = 6;
+    /** A kind of link that is known but not read yet. */
+    static final int LATER = 7;
+
+    /** Sorts a server's answer by status into what the listener needs to know. */
+    static int classifyStatus(int status) {
+        if (status == 404 || status == 410) {
+            return DEAD;
+        }
+        if (status == 429 || status == 509) {
+            return SPENT;
+        }
+        return REFUSED;
+    }
+
+    /** Fetching for the other kinds of link: a refusal comes as an exception with its status. */
+    private final Sources.Fetch web = new Sources.Fetch() {
+        @Override
+        public String text(URL u) throws IOException {
+            HttpURLConnection c = (HttpURLConnection) u.openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(30000);
+            c.setRequestProperty("Accept", "application/json, text/html;q=0.9, */*;q=0.5");
+            try {
+                int code = c.getResponseCode();
+                if (code >= 400) {
+                    throw new Sources.Refused(code, "http " + code);
+                }
+                InputStream in = c.getInputStream();
+                try {
+                    return new String(head(in, 8 * 1024 * 1024), "UTF-8");
+                } finally {
+                    in.close();
+                }
+            } finally {
+                c.disconnect();
+            }
+        }
+
+        @Override
+        public long length(URL u) throws IOException {
+            HttpURLConnection c = (HttpURLConnection) u.openConnection();
+            c.setRequestMethod("HEAD");
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            try {
+                return c.getResponseCode() < 400 ? c.getContentLengthLong() : -1;
+            } finally {
+                c.disconnect();
+            }
+        }
+    };
 
     private static Library one;
 
@@ -445,6 +496,30 @@ final class Library {
     /** Asks a link's folder in both regions, the one that answered last time first. Blocking. */
     private Probe probe(Link l) {
         Probe p = new Probe();
+        if (l.kind == Link.LATER) {
+            p.state = LATER;
+            p.error = "this kind of link is not read yet";
+            return p;
+        }
+        if (l.kind != Link.CODE) {
+            try {
+                String body = l.kind == Link.DISK ? Sources.disk(web, l.text, l.code) : Sources.web(web, l.text, l.code);
+                Object meta = Json.obj(Json.parse(body), "metadata");
+                p.found = mark(Shelf.read(meta), l.code);
+                p.name = Json.str(meta, "name");
+                p.body = body;
+                p.host = "";
+                p.state = p.found.isEmpty() ? EMPTY : ADDED;
+                p.error = p.found.isEmpty() ? "no sound files" : null;
+            } catch (Sources.Refused r) {
+                p.state = classifyStatus(r.status);
+                p.detail = r.getMessage();
+                p.error = r.getMessage();
+            } catch (Exception e) {
+                p.error = e.getClass().getSimpleName() + ": " + e.getMessage();
+            }
+            return p;
+        }
         String known = prefs.getString("host:" + l.code, "");
         String[] hosts = known.isEmpty() ? new String[]{l.first, l.second}
             : new String[]{known, known.equals(l.first) ? l.second : l.first};
@@ -504,7 +579,9 @@ final class Library {
                 if (state == ADDED) {
                     try {
                         write(treeFile(l.code), p.body);
-                        prefs.edit().putString("host:" + l.code, p.host).apply();
+                        if (l.kind == Link.CODE) {
+                            prefs.edit().putString("host:" + l.code, p.host).apply();
+                        }
                         synchronized (Library.this) {
                             bySource.put(l.code, found);
                         }
@@ -959,9 +1036,26 @@ final class Library {
     }
 
     /** Where a chapter can be fetched from right now; the address is short-lived, so it is asked each time. */
-    private URL address(Shelf.Book b, long file) throws IOException {
+    private URL address(Shelf.Book b, Shelf.Chapter ch) throws IOException {
         String code = b.source;
+        long file = ch.id;
         Link l = Link.parse(prefs.getString("link:" + code, code));
+        if (l != null && l.kind == Link.WEB) {
+            return new URL(ch.ref);
+        }
+        if (l != null && l.kind == Link.DISK) {
+            try {
+                return Sources.diskFile(web, l.text, ch.ref);
+            } catch (Sources.Refused r) {
+                int k = classifyStatus(r.status);
+                if (k != REFUSED) {
+                    /* The link died while its book was coming in: the shelf says so, fetching stops. */
+                    prefs.edit().putInt("state:" + code, k).apply();
+                    tell();
+                }
+                throw r;
+            }
+        }
         String host = prefs.getString("host:" + code, l == null ? Link.EU : l.first);
         Object answer = Json.parse(text(Link.fetch(host, code, file)));
         long result = Json.num(answer, "result", -1);
@@ -1005,7 +1099,7 @@ final class Library {
             have = 0;
         }
         if (ch.size <= 0 || have < ch.size) {
-            HttpURLConnection c = (HttpURLConnection) address(b, ch.id).openConnection();
+            HttpURLConnection c = (HttpURLConnection) address(b, ch).openConnection();
             c.setConnectTimeout(15000);
             c.setReadTimeout(30000);
             if (have > 0) {
@@ -1120,7 +1214,7 @@ final class Library {
                             }
                             return;
                         }
-                        where = address(book, first.id);
+                        where = address(book, first);
                         head = range(where, 256 * 1024);
                     }
                     int whole = Tags.length(head);
@@ -1128,7 +1222,7 @@ final class Library {
                         int want = Math.min(whole, 4 * 1024 * 1024);
                         head = local(first, want);
                         if (head == null && !book.source.isEmpty()) {
-                            head = range(where != null ? where : address(book, first.id), want);
+                            head = range(where != null ? where : address(book, first), want);
                         }
                     }
                     byte[] pic = head == null ? null : Tags.picture(head);

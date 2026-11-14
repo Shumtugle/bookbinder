@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.3";
+    static final String VERSION = "0.4";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -259,6 +259,8 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
                 return Words.s("r_spent");
             case Library.EMPTY:
                 return Words.s("r_empty");
+            case Library.LATER:
+                return Words.s("r_later");
             default:
                 return Words.f("r_refused", detail);
         }
@@ -694,7 +696,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         c.setPadding(dp(18), dp(18), dp(18), dp(18));
         c.setBackground(card());
         c.addView(text(Words.s("link_title"), 18, INK, true));
-        TextView about = text(Words.f("link_text", Store.shown()), 14, SOFT, false);
+        TextView about = text(Words.f("link_text", Store.shown()) + "\n\n" + Words.s("link_text_more"), 14, SOFT, false);
         about.setPadding(0, dp(6), 0, dp(12));
         c.addView(about);
         final EditText field = new EditText(this);

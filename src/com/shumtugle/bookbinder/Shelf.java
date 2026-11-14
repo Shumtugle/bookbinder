@@ -23,6 +23,8 @@ final class Shelf {
         final long id;
         final String name;
         final long size;
+        /** Where to fetch it from, for kinds of link that fetch by path or address. */
+        String ref = "";
 
         Chapter(long id, String name, long size) {
             this.id = id;
@@ -131,6 +133,8 @@ final class Shelf {
                 walk(o, books);
             } else if (sound(name(o), Json.str(o, "contenttype"))) {
                 Chapter ch = new Chapter(Json.num(o, "fileid", 0), name(o), Json.num(o, "size", 0));
+                String ref = Json.str(o, "ref");
+                ch.ref = ref == null ? "" : ref;
                 here.chapters.add(ch);
                 here.bytes += ch.size;
             }
