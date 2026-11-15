@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookbinder — an audiobook player for Android</title>
+<meta name="description" content="A simple audiobook player for Android: a book is a folder of sound files. Try the shelf, the looks and the drum right here.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Crect x='18' y='18' width='72' height='72' rx='16' fill='%23C74117'/%3E%3Cg transform='translate(54 54) scale(0.8) translate(-54 -54)'%3E%3Cpath d='M54 41 C46 36.5 36 35.5 25 37.5 L25 70.5 C36 68.5 46 69.5 54 74 Z' fill='%23F6F3EC'/%3E%3Cpath d='M54 41 C62 36.5 72 35.5 83 37.5 L83 70.5 C72 68.5 62 69.5 54 74 Z' fill='%23F6F3EC'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #F6F3EC; --card: #FFFFFF; --ink: #22201C; --soft: #7D776C;
+    --line: #E7E1D5; --accent: #2F6B5F; --pale: #DCE8E3; --k: 1;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    transition: background .25s, color .25s;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 28px 18px 60px; }
+  header { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  header svg { width: 76px; height: 76px; flex: none; border-radius: calc(18px * var(--k)); }
+  h1 { margin: 0; font-size: 34px; letter-spacing: -.01em; }
+  .tag { margin: 2px 0 0; color: var(--soft); }
+  .get { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+  a.pill, button.pill {
+    display: inline-block; padding: 11px 20px; border-radius: calc(22px * var(--k));
+    background: var(--accent); color: var(--card); text-decoration: none; font-weight: 600;
+    border: 0; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  a.pill.quiet { background: var(--card); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--line); }
+  .looks {
+    margin: 26px 0 8px; display: flex; gap: 10px 22px; flex-wrap: wrap; align-items: center;
+    background: var(--card); padding: 14px 16px; border-radius: calc(14px * var(--k));
+  }
+  .looks .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .looks .name { color: var(--soft); font-size: 14px; margin-right: 4px; }
+  .seg {
+    border: 0; font: inherit; font-size: 14px; padding: 7px 12px; cursor: pointer;
+    border-radius: calc(18px * var(--k)); background: var(--paper); color: var(--ink);
+  }
+  .seg.on { background: var(--accent); color: var(--card); font-weight: 600; }
+  .note { color: var(--soft); font-size: 13px; margin: 0 0 22px; }
+  .stage { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } header .get { margin-left: 0; } }
+  .phone {
+    background: var(--paper); border-radius: calc(26px * var(--k)); padding: 16px;
+    box-shadow: 0 0 0 1.5px var(--line), 0 10px 30px rgba(0,0,0,.08);
+  }
+  .phone h2 { margin: 2px 4px 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--soft); font-weight: 600; }
+  .book {
+    background: var(--card); border-radius: calc(14px * var(--k)); padding: 10px 12px 12px 10px;
+    margin-bottom: 10px; cursor: pointer; transition: transform .35s ease, opacity .35s;
+  }
+  .book .top { display: flex; gap: 14px; align-items: center; }
+  .cover {
+    width: 64px; height: 64px; flex: none; border-radius: calc(8px * var(--k));
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 22px;
+  }
+  .book .t { font-weight: 600; line-height: 1.25; }
+  .book .a { color: var(--soft); font-size: 13px; }
+  .book .w { color: var(--accent); font-size: 13px; margin-top: 3px; }
+  canvas.scale { display: block; width: 100%; height: 14px; margin-top: 10px; }
+  .player { background: var(--card); border-radius: calc(14px * var(--k)); padding: 18px 16px 16px; text-align: center; }
+  .player .cover { width: 132px; height: 132px; margin: 0 auto 12px; font-size: 40px; border-radius: calc(18px * var(--k)); }
+  .player .t { font-weight: 600; font-size: 18px; }
+  .player .c { color: var(--accent); font-weight: 600; margin-top: 8px; }
+  .times { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; color: var(--soft); font-size: 14px; margin-top: 10px; }
+  .strip { position: relative; margin-top: 4px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas.strip-c { display: block; width: 100%; height: 48px; cursor: grab; }
+  .drum {
+    position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); height: 132px; display: none;
+    background: var(--card); border-radius: calc(20px * var(--k));
+    box-shadow: 0 8px 26px rgba(0,0,0,.22); pointer-events: none;
+  }
+  .drum canvas { width: 100%; height: 100%; display: block; }
+  .keys { display: flex; justify-content: center; gap: 10px; margin-top: 12px; align-items: center; }
+  .key {
+    border: 0; background: var(--paper); color: var(--ink); font: inherit; font-weight: 600;
+    min-width: 54px; height: 46px; border-radius: calc(23px * var(--k)); cursor: pointer; padding: 0 12px;
+  }
+  .key.big { background: var(--accent); color: var(--card); min-width: 64px; height: 56px; border-radius: calc(28px * var(--k)); font-size: 20px; }
+  .hint { color: var(--soft); font-size: 13px; margin-top: 12px; }
+  canvas.widget { display: block; width: 100%; height: 76px; margin-top: 14px; }
+  section.more { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  section.more div { background: var(--card); border-radius: calc(14px * var(--k)); padding: 16px 18px; }
+  section.more h3 { margin: 0 0 6px; font-size: 16px; }
+  section.more p { margin: 0; color: var(--soft); font-size: 14px; }
+  footer { margin-top: 40px; color: var(--soft); font-size: 14px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg viewBox="18 18 72 72" aria-hidden="true">
+      <rect x="18" y="18" width="72" height="72" fill="#C74117"/>
+      <g transform="translate(54 54) scale(0.8) translate(-54 -54)">
+        <path d="M54 41 C46 36.5 36 35.5 25 37.5 L25 70.5 C36 68.5 46 69.5 54 74 Z" fill="#F6F3EC"/>
+        <path d="M54 41 C62 36.5 72 35.5 83 37.5 L83 70.5 C72 68.5 62 69.5 54 74 Z" fill="#F6F3EC"/>
+        <line x1="54" y1="41.5" x2="54" y2="73.5" stroke="#C74117" stroke-width="1.6"/>
+        <g stroke="#C74117" stroke-linecap="round">
+          <line x1="31" y1="46" x2="48.5" y2="45.2" stroke-width="2.4"/><line x1="31" y1="51.5" x2="48.5" y2="50.7" stroke-width="2.4"/>
+          <line x1="31" y1="57" x2="48.5" y2="56.2" stroke-width="2.4"/><line x1="31" y1="62.5" x2="48.5" y2="61.7" stroke-width="2.4"/>
+          <line x1="60.5" y1="52" x2="60.5" y2="58" stroke-width="2.8"/><line x1="65" y1="47.5" x2="65" y2="62.5" stroke-width="2.8"/>
+          <line x1="69.5" y1="44.5" x2="69.5" y2="65.5" stroke-width="2.8"/><line x1="74" y1="49" x2="74" y2="61" stroke-width="2.8"/>
+          <line x1="78.5" y1="51.5" x2="78.5" y2="58.5" stroke-width="2.8"/>
+          <line x1="51.5" y1="45" x2="56.5" y2="48" stroke-width="1.8"/><line x1="51.5" y1="52" x2="56.5" y2="55" stroke-width="1.8"/>
+          <line x1="51.5" y1="59" x2="56.5" y2="62" stroke-width="1.8"/><line x1="51.5" y1="66" x2="56.5" y2="69" stroke-width="1.8"/>
+        </g>
+      </g>
+    </svg>
+    <div>
+      <h1>Bookbinder</h1>
+      <p class="tag">A simple audiobook player for Android. A book is a folder of sound files.</p>
+    </div>
+    <div class="get">
+      <a class="pill" href="https://github.com/Shumtugle/bookbinder/releases/latest">Download the APK</a>
+      <a class="pill quiet" href="https://github.com/Shumtugle/bookbinder">Source</a>
+    </div>
+  </header>
+
+  <div class="looks" id="looks">
+    <div class="group"><span class="name">Style</span>
+      <button class="seg" data-k="palette" data-v="paper">Paper</button>
+      <button class="seg" data-k="palette" data-v="warm">Warm theme</button>
+      <button class="seg" data-k="palette" data-v="wallpaper">Wallpaper colours</button>
+    </div>
+    <div class="group"><span class="name">Theme</span>
+      <button class="seg" data-k="dark" data-v="0">Light</button>
+      <button class="seg" data-k="dark" data-v="1">Dark</button>
+    </div>
+    <div class="group"><span class="name">Corners</span>
+      <button class="seg" data-k="corners" data-v="sharp">Sharp</button>
+      <button class="seg" data-k="corners" data-v="soft">Soft</button>
+      <button class="seg" data-k="corners" data-v="round">Round</button>
+    </div>
+  </div>
+  <p class="note">The same choices as in the app's settings, working on this page. On the phone, “wallpaper colours” are taken from your wallpaper; here a calm violet stands in for them.</p>
+
+  <div class="stage">
+    <div class="phone">
+      <h2>The shelf</h2>
+      <div id="shelf"></div>
+      <p class="hint">Open a book: it moves to the top. The bar under each book is the whole book, cut into its chapters.</p>
+    </div>
+    <div class="phone">
+      <h2>The player</h2>
+      <div class="player">
+        <div class="cover" id="pcover"></div>
+        <div class="t" id="ptitle"></div>
+        <div class="a" id="pauthor" style="color:var(--soft);font-size:14px"></div>
+        <div class="c" id="pchapter"></div>
+        <div class="times"><span id="here">0:00</span><span id="left">−0:00</span></div>
+        <div class="strip" id="strip">
+          <div class="drum" id="drum"><canvas id="drumc"></canvas></div>
+          <canvas class="strip-c" id="stripc" aria-label="Place in the chapter: hold and turn"></canvas>
+        </div>
+        <div class="keys">
+          <button class="key" id="prev" aria-label="Previous chapter">⏮</button>
+          <button class="key" id="back">−15</button>
+          <button class="key big" id="play" aria-label="Play">▶</button>
+          <button class="key" id="fwd">+30</button>
+          <button class="key" id="next" aria-label="Next chapter">⏭</button>
+        </div>
+        <p class="hint">Hold the strip, or drag it: a drum of five-second ticks rises. Near the finger it moves five seconds at a time, further off faster and faster; at an edge it keeps turning. Let go to land there.</p>
+      </div>
+      <canvas class="widget" id="widget" aria-label="The line widget"></canvas>
+    </div>
+  </div>
+
+  <section class="more">
+    <div><h3>Books on the phone</h3><p>Any folder of sound files under Music/Audiobooks is a book; folders of your own are added once in the system folder picker.</p></div>
+    <div><h3>Books from links</h3><p>Paste or share a public cloud folder link: the book gets its own folder and comes in chapter by chapter, the one being heard first. Nothing is ever deleted by the app.</p></div>
+    <div><h3>The place, always</h3><p>Chapter and second in every book. A book taken up after a pause steps back a few seconds.</p></div>
+    <div><h3>Widgets</h3><p>A line, a card and a single key, drawn in the chosen look, with how transparent their ground is.</p></div>
+    <div><h3>Keys</h3><p>Back 15 s, forward 30 s, chapters, speed, a sleep timer; headset keys and a notification with the same keys.</p></div>
+    <div><h3>Three languages</h3><p>English, Russian and Finnish, chosen inside the app. Android 8 or later.</p></div>
+  </section>
+
+  <footer>
+    Java, platform only, no build system. License: 0BSD. What changed: <a href="https://github.com/Shumtugle/bookbinder/blob/main/CHANGELOG.md">the changelog</a>.
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* The app's own palettes: ground, card, ink, soft ink, line, accent, pale accent. */
+  var LOOKS = {
+    paper: [["#F6F3EC", "#FFFFFF", "#22201C", "#7D776C", "#E7E1D5", "#2F6B5F", "#DCE8E3"],
+            ["#151411", "#201E1A", "#EDE8DE", "#9C958A", "#302D27", "#86C8B6", "#233631"]],
+    warm: [["#F7F2EF", "#FFFFFF", "#2C0F24", "#7B6872", "#EADCDF", "#C74117", "#FBE2D8"],
+           ["#2A0B21", "#3B1531", "#F4EBF0", "#BCA4B3", "#552A49", "#F27A42", "#5C2338"]],
+    wallpaper: [["#F3EDF7", "#FEF7FF", "#1D1B20", "#49454F", "#CAC4D0", "#6750A4", "#EADDFF"],
+                ["#141218", "#211F26", "#E6E0E9", "#CAC4D0", "#49454F", "#D0BCFF", "#4F378B"]]
+  };
+  var ROUND = { sharp: 0.2, soft: 1, round: 1.8 };
+  var NAMES = ["paper", "card", "ink", "soft", "line", "accent", "pale"];
+  var look = { palette: "warm", dark: matchMedia("(prefers-color-scheme: dark)").matches ? "1" : "0", corners: "soft" };
+  var col = {};
+
+  function applyLook() {
+    var set = LOOKS[look.palette][look.dark === "1" ? 1 : 0];
+    for (var i = 0; i < NAMES.length; i++) {
+      col[NAMES[i]] = set[i];
+      document.documentElement.style.setProperty("--" + NAMES[i], set[i]);
+    }
+    col.k = ROUND[look.corners];
+    document.documentElement.style.setProperty("--k", col.k);
+    var segs = document.querySelectorAll(".seg");
+    for (var j = 0; j < segs.length; j++) {
+      segs[j].classList.toggle("on", look[segs[j].dataset.k] === segs[j].dataset.v);
+    }
+    drawAll();
+  }
+  document.getElementById("looks").addEventListener("click", function (e) {
+    var b = e.target.closest(".seg");
+    if (b) { look[b.dataset.k] = b.dataset.v; applyLook(); }
+  });
+
+  /* A few books in the public domain, with chapters as long as they would be. */
+  var hue = ["#4F6D7A", "#8C5A3C", "#5B6B3A", "#6A4C7A", "#3E6E64"];
+  function mins(list) { return list.map(function (m) { return m * 60000; }); }
+  var books = [
+    { t: "The Time Machine", a: "H. G. Wells", ch: mins([18, 22, 25, 31, 19, 27, 24, 21, 33, 16, 12, 9]), at: 4, pos: 610000, opened: 5 },
+    { t: "Pride and Prejudice", a: "Jane Austen", ch: mins([14, 12, 16, 11, 9, 21, 15, 13, 12, 17, 10, 14, 13, 16, 12, 18, 11, 22, 15, 14, 12, 9, 13, 16, 19, 12, 15, 21, 18, 16, 14, 12, 11, 17, 22, 16]), at: 21, pos: 300000, opened: 4 },
+    { t: "Moby-Dick", a: "Herman Melville", ch: mins([22, 18, 46, 12, 9, 14, 11, 13, 39, 15, 8, 12, 17, 9, 21, 48, 16, 12, 10, 14, 11, 9, 7, 19, 6, 12]), at: 2, pos: 1200000, opened: 3 },
+    { t: "The Odyssey", a: "Homer", ch: mins([41, 37, 44, 52, 39, 33, 31, 45, 47, 49, 54, 42]), at: 0, pos: 0, opened: 0 },
+    { t: "A Study in Scarlet", a: "Arthur Conan Doyle", ch: mins([21, 26, 29, 24, 23, 25, 28, 31, 33, 30, 27, 29, 26, 22]), at: 13, pos: 0, opened: 1, finished: true }
+  ];
+  books.forEach(function (b, i) { b.hue = hue[i]; b.total = b.ch.reduce(function (s, v) { return s + v; }, 0); });
+  var current = books[0];
+  var playing = false;
+  var clock = 6;
+
+  function done(b) {
+    if (b.finished) { return 1; }
+    var before = 0;
+    for (var i = 0; i < b.at; i++) { before += b.ch[i]; }
+    return Math.min(1, (before + b.pos) / b.total);
+  }
+  function starts(b) {
+    var s = [], acc = 0;
+    for (var i = 0; i < b.ch.length; i++) { s.push(acc / b.total); acc += b.ch[i]; }
+    return s;
+  }
+  function initials(b) { return b.t.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w); }).slice(0, 2).map(function (w) { return w[0]; }).join(""); }
+  function time(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+    return (h ? h + ":" + (m < 10 ? "0" : "") : "") + m + ":" + (x < 10 ? "0" : "") + x;
+  }
+
+  function fit(canvas) {
+    var r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    var w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    var g = canvas.getContext("2d");
+    g.setTransform(d, 0, 0, d, 0, 0);
+    return { g: g, w: r.width, h: r.height };
+  }
+  function rr(g, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+
+  /* The wide bar of a whole book, cut into its chapters, as on the shelf. */
+  function scale(canvas, b) {
+    var c = fit(canvas), g = c.g, w = c.w, h = c.h, gap = 2, s = starts(b), n = s.length;
+    var cut = n > 1 && w / n >= gap * 3, fill = done(b) * w, r = h / 2 * Math.min(1, col.k);
+    g.clearRect(0, 0, w, h);
+    for (var pass = 0; pass < 2; pass++) {
+      if (pass === 1) { if (fill <= 0) { break; } g.save(); g.beginPath(); g.rect(0, 0, fill, h); g.clip(); }
+      g.fillStyle = pass ? col.accent : col.line;
+      if (!cut) { rr(g, 0, 0, w, h, r); g.fill(); }
+      else {
+        for (var i = 0; i < n; i++) {
+          var a = s[i] * w + (i ? gap / 2 : 0), e = i + 1 < n ? s[i + 1] * w - gap / 2 : w;
+          if (e - a >= 1) { rr(g, a, 0, e - a, h, Math.min(r, (e - a) / 2)); g.fill(); }
+        }
+      }
+      if (pass === 1) { g.restore(); }
+    }
+  }
+
+  function shelf() {
+    var box = document.getElementById("shelf");
+    var order = books.slice().sort(function (x, y) { return y.opened - x.opened; });
+    box.innerHTML = "";
+    order.forEach(function (b) {
+      var el = document.createElement("div");
+      el.className = "book";
+      var pct = Math.round(done(b) * 100);
+      el.innerHTML = '<div class="top"><div class="cover" style="background:' + b.hue + '">' + initials(b) + '</div><div>' +
+        '<div class="t"></div><div class="a"></div><div class="w"></div></div></div><canvas class="scale"></canvas>';
+      el.querySelector(".t").textContent = b.t;
+      el.querySelector(".a").textContent = b.a;
+      el.querySelector(".w").textContent = b.finished ? "Finished" : "Chapter " + (b.at + 1) + " of " + b.ch.length + (pct ? " · " + pct + "%" : "");
+      el.addEventListener("click", function () { open(b); });
+      box.appendChild(el);
+      b.bar = el.querySelector("canvas");
+    });
+    order.forEach(function (b) { scale(b.bar, b); });
+  }
+
+  function open(b) {
+    b.opened = ++clock;
+    current = b;
+    shelf();
+    player();
+  }
+
+  function player() {
+    var b = current;
+    var cv = document.getElementById("pcover");
+    cv.style.background = b.hue; cv.textContent = initials(b);
+    document.getElementById("ptitle").textContent = b.t;
+    document.getElementById("pauthor").textContent = b.a;
+    document.getElementById("pchapter").textContent = "Chapter " + (b.at + 1) + " of " + b.ch.length;
+    times();
+    dial.set(b.ch[b.at], b.pos);
+    widget();
+  }
+  function times(aim) {
+    var b = current, d = b.ch[b.at], at = aim != null ? aim : b.pos;
+    document.getElementById("here").textContent = time(at);
+    document.getElementById("left").textContent = "−" + time(d - at);
+  }
+
+  /* ---------------------------------------------------------------- the drum */
+
+  var Dial = function (stripCanvas, drumBox, drumCanvas, go) {
+    var TICK = 5000, MAJOR = 12, SIDE = 18, REACH = 62 * Math.PI / 180, STEP = REACH / SIDE, SPAN = 0.47, EDGE = 0.1;
+    var self = this, duration = 0, position = 0, raised = false, downX = 0, raiseX = 0, lastX = 0, timer = 0;
+    var last = 0, origin = 0, drag = 0, rolled = 0, pos = 0, felt = -1, edge = 0, rolling = 0, lay = null;
+
+    this.set = function (d, p) { duration = Math.max(0, d); position = Math.max(0, Math.min(p, duration)); if (!raised) { self.draw(); } };
+    this.raised = function () { return raised; };
+
+    function fitLog(ticks, room, near) {
+      if (ticks <= 0 || near * ticks <= room) { return { even: true, step: near }; }
+      var want = room / near, lo = 1e-4, hi = 1e7;
+      for (var k = 0; k < 60; k++) { var mid = (lo + hi) / 2; if (mid * Math.log(1 + ticks / mid) < want) { lo = mid; } else { hi = mid; } }
+      var fine = (lo + hi) / 2;
+      return { even: false, fine: fine, span: near * fine };
+    }
+    function layOut() {
+      var w = Math.max(1, stripCanvas.getBoundingClientRect().width);
+      var near = Math.max(1, w * SPAN * STEP / Math.sin(REACH)), room = Math.max(near * 4, w * 0.42);
+      lay = { ahead: fitLog(last - origin, room, near), back: fitLog(origin, room, near) };
+    }
+    function travelled() {
+      var s = drag >= 0 ? lay.ahead : lay.back, x = Math.abs(drag);
+      var t = s.even ? x / s.step : s.fine * (Math.exp(x / s.span) - 1);
+      return drag >= 0 ? t : -t;
+    }
+    function target() { return Math.max(0, Math.min(duration, Math.round(pos * TICK))); }
+    function moved() {
+      if (!lay) { layOut(); }
+      pos = Math.max(0, Math.min(last, origin + rolled + travelled()));
+      var tick = Math.floor(pos);
+      if (tick !== felt) { felt = tick; if (navigator.vibrate) { try { navigator.vibrate(tick % MAJOR === 0 ? 12 : 4); } catch (e) {} } }
+      go.aim(target());
+      self.draw(); drum();
+    }
+    function raise(x) {
+      if (raised || duration <= 0) { return; }
+      raised = true; raiseX = x; last = duration / TICK; origin = position / TICK; pos = origin;
+      drag = 0; rolled = 0; lay = null; felt = Math.floor(pos); edge = 0;
+      drumBox.style.display = "block";
+      go.aim(target()); self.draw(); drum();
+    }
+    function lower(take) {
+      clearTimeout(timer); cancelAnimationFrame(rolling); rolling = 0; edge = 0;
+      if (!raised) { return; }
+      raised = false; drumBox.style.display = "none";
+      var t = target();
+      if (take && Math.abs(t - position) >= 500) { position = t; go.go(t); }
+      go.aim(-1); self.draw();
+    }
+    function roll() {
+      if (!raised || edge === 0) { rolling = 0; return; }
+      rolled += edge; moved();
+      rolling = requestAnimationFrame(roll);
+    }
+    function xOf(e) { return e.clientX - stripCanvas.getBoundingClientRect().left; }
+    stripCanvas.addEventListener("pointerdown", function (e) {
+      if (duration <= 0) { return; }
+      stripCanvas.setPointerCapture(e.pointerId);
+      downX = lastX = xOf(e);
+      timer = setTimeout(function () { raise(lastX); }, 280);
+      e.preventDefault();
+    });
+    stripCanvas.addEventListener("pointermove", function (e) {
+      if (!stripCanvas.hasPointerCapture(e.pointerId)) { return; }
+      var x = lastX = xOf(e);
+      if (!raised && Math.abs(x - downX) > 8) { clearTimeout(timer); raise(x); }
+      if (raised) {
+        drag = x - raiseX;
+        var w = stripCanvas.getBoundingClientRect().width, across = x / Math.max(1, w), was = edge;
+        edge = across < EDGE ? -(EDGE - across) * 12 : across > 1 - EDGE ? (across - (1 - EDGE)) * 12 : 0;
+        if (was === 0 && edge !== 0 && !rolling) { rolling = requestAnimationFrame(roll); }
+        moved();
+      }
+    });
+    stripCanvas.addEventListener("pointerup", function () { clearTimeout(timer); lower(true); });
+    stripCanvas.addEventListener("pointercancel", function () { clearTimeout(timer); lower(false); });
+
+    this.draw = function () {
+      var c = fit(stripCanvas), g = c.g, w = c.w, h = c.h, knob = 10, x0 = knob, x1 = w - knob, thick = 12, cy = h / 2;
+      var r = thick / 2 * Math.min(1, col.k);
+      var frac = duration > 0 ? (raised ? target() : position) / duration : 0, fx = x0 + frac * (x1 - x0);
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = col.line; rr(g, x0, cy - thick / 2, x1 - x0, thick, r); g.fill();
+      if (fx > x0) { g.save(); g.beginPath(); g.rect(x0, 0, fx - x0, h); g.clip(); g.fillStyle = col.accent; rr(g, x0, cy - thick / 2, x1 - x0, thick, r); g.fill(); g.restore(); }
+      if (raised && duration > 0) { var nx = x0 + position / duration * (x1 - x0); g.fillStyle = col.ink; g.fillRect(nx - 1, cy - thick, 2, thick * 2); }
+      if (duration > 0) {
+        var kr = raised ? knob : knob * 0.8;
+        g.fillStyle = col.card; g.beginPath(); g.arc(fx, cy, kr + 3, 0, 7); g.fill();
+        g.fillStyle = col.accent; g.beginPath(); g.arc(fx, cy, kr, 0, 7); g.fill();
+      }
+    };
+
+    function drum() {
+      var c = fit(drumCanvas), g = c.g, w = c.w, h = c.h;
+      g.clearRect(0, 0, w, h);
+      var at = target(), diff = at - position;
+      g.textAlign = "center"; g.fillStyle = col.ink; g.font = "600 26px system-ui, sans-serif";
+      g.fillText(time(at), w / 2, 14 + 26);
+      g.fillStyle = col.accent; g.font = "600 15px system-ui, sans-serif";
+      g.fillText((diff >= 0 ? "+" : "−") + time(Math.abs(diff)), w / 2, 14 + 26 + 20);
+      var cx = w / 2, drumR = w * SPAN / Math.sin(REACH), rimCos = Math.cos(REACH), mid = h * 0.74, tall = 20, sag = 14;
+      var count = Math.floor(last) + 1, now = Math.round(position / TICK), first = Math.floor(pos) - SIDE;
+      for (var i = first; i <= first + SIDE * 2 + 1; i++) {
+        if (i < 0 || i >= count) { continue; }
+        var th = (i - pos) * STEP;
+        if (Math.abs(th) >= REACH) { continue; }
+        var cos = (Math.cos(th) - rimCos) / (1 - rimCos), x = cx + drumR * Math.sin(th), y = mid + sag * (1 - cos);
+        var minute = i % MAJOR === 0, voice = i === now;
+        var len = tall * (minute ? 1.45 : 1) * (0.55 + 0.45 * cos), thick = (minute ? 2.2 : 1.6) * (0.6 + 0.4 * cos);
+        var alpha = Math.pow(cos, 1.6) * (minute ? 0.75 : 0.45);
+        g.globalAlpha = voice ? Math.max(alpha, 0.8) : alpha;
+        g.fillStyle = voice ? col.accent : col.ink;
+        rr(g, x - thick / 2, y - len / 2, thick, len, thick / 2); g.fill();
+      }
+      g.globalAlpha = 1; g.fillStyle = col.accent;
+      rr(g, cx - 1.25, mid - tall * 1.2, 2.5, h - 10 - (mid - tall * 1.2), 1.25); g.fill();
+    }
+  };
+
+  var aiming = -1;
+  var dial = new Dial(document.getElementById("stripc"), document.getElementById("drum"), document.getElementById("drumc"), {
+    go: function (ms) { current.pos = ms; times(); refreshBook(); },
+    aim: function (ms) { aiming = ms; times(ms >= 0 ? ms : null); }
+  });
+
+  function refreshBook() { if (current.bar) { scale(current.bar, current); } widget(); }
+
+  /* ---------------------------------------------------------------- keys and the clock */
+
+  function setPlaying(p) {
+    playing = p;
+    var k = document.getElementById("play");
+    k.textContent = p ? "❚❚" : "▶";
+    k.setAttribute("aria-label", p ? "Pause" : "Play");
+    widget();
+  }
+  function chapter(step) {
+    var b = current, n = b.at + step;
+    if (step < 0 && b.pos > 3000) { b.pos = 0; }
+    else if (n >= 0 && n < b.ch.length) { b.at = n; b.pos = 0; }
+    player(); shelfText();
+  }
+  function shelfText() { shelf(); }
+  document.getElementById("play").onclick = function () {
+    /* A finished book played again starts from the beginning. */
+    if (!playing && current.finished) { current.finished = false; current.at = 0; current.pos = 0; player(); shelf(); }
+    setPlaying(!playing);
+  };
+  document.getElementById("back").onclick = function () { current.pos = Math.max(0, current.pos - 15000); player(); };
+  document.getElementById("fwd").onclick = function () { current.pos = Math.min(current.ch[current.at] - 1000, current.pos + 30000); player(); };
+  document.getElementById("prev").onclick = function () { chapter(-1); };
+  document.getElementById("next").onclick = function () { chapter(1); };
+
+  setInterval(function () {
+    if (!playing || dial.raised()) { return; }
+    var b = current;
+    b.pos += 1000;
+    if (b.pos >= b.ch[b.at]) {
+      if (b.at + 1 < b.ch.length) { b.at++; b.pos = 0; player(); shelf(); return; }
+      b.pos = b.ch[b.at]; b.finished = true; setPlaying(false); shelf();
+    }
+    times(); dial.set(b.ch[b.at], b.pos); refreshBook();
+  }, 1000);
+
+  /* ---------------------------------------------------------------- the line widget */
+
+  function widget() {
+    var c = fit(document.getElementById("widget")), g = c.g, w = c.w, h = c.h, b = current, k = col.k, pad = 8;
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = col.card; rr(g, 0, 0, w, h, Math.min(22 * k, h / 2)); g.fill();
+    var side = h - pad * 2;
+    g.fillStyle = b.hue; rr(g, pad, pad, side, side, 10 * k); g.fill();
+    g.fillStyle = "#fff"; g.font = "700 18px system-ui, sans-serif"; g.textAlign = "center";
+    g.fillText(initials(b), pad + side / 2, pad + side / 2 + 6);
+    var tx = pad + side + 12, keys = 3 * 44, tw = w - tx - keys - 8;
+    g.textAlign = "left"; g.fillStyle = col.ink; g.font = "600 14px system-ui, sans-serif";
+    var t = b.t; while (g.measureText(t).width > tw && t.length > 3) { t = t.slice(0, -2); } if (t !== b.t) { t = t.trim() + "…"; }
+    g.fillText(t, tx, h / 2 - 8);
+    g.fillStyle = col.soft; g.font = "12px system-ui, sans-serif";
+    g.fillText("Chapter " + (b.at + 1) + " of " + b.ch.length, tx, h / 2 + 9);
+    var by = h / 2 + 17, bh = 3, r = bh / 2 * Math.min(1, k);
+    g.fillStyle = col.line; rr(g, tx, by, tw, bh, r); g.fill();
+    g.fillStyle = col.accent; rr(g, tx, by, Math.max(bh, tw * done(b)), bh, r); g.fill();
+    var labels = ["−15", playing ? "❚❚" : "▶", "+30"];
+    for (var i = 0; i < 3; i++) {
+      var cx = w - keys - 4 + 22 + i * 44, cy = h / 2;
+      if (i === 1) { g.fillStyle = col.accent; g.beginPath(); g.arc(cx, cy, 19, 0, 7); g.fill(); }
+      g.fillStyle = i === 1 ? col.card : col.ink; g.font = "600 13px system-ui, sans-serif"; g.textAlign = "center";
+      g.fillText(labels[i], cx, cy + 5);
+    }
+  }
+
+  function drawAll() { shelf(); player(); dial.draw(); }
+  window.addEventListener("resize", drawAll);
+  applyLook();
+})();
+</script>
+</body>
+</html>
