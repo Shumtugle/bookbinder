@@ -186,6 +186,10 @@ final class Library {
     private final HashMap<Long, String> kept = new HashMap<Long, String>();
     /** Books put on the shelf by hand, and where their chapters are; found anew at every look. */
     private volatile ArrayList<Shelf.Book> locals = new ArrayList<Shelf.Book>();
+    /** Whether the shelf folders have been looked through once since the process began. */
+    private volatile boolean looked;
+    /** Whoever asked for a book from the folders before that first look. */
+    private final ArrayList<Runnable> afterLook = new ArrayList<Runnable>();
     private final HashMap<Long, String> localKept = new HashMap<Long, String>();
     /** Chapters that were brought and then deleted by the listener. */
     private final HashSet<Long> gone = new HashSet<Long>();
@@ -250,6 +254,7 @@ final class Library {
                 merge();
                 tell();
                 Widget.refresh(app);
+                lookedOnce();
                 for (Shelf.Book b : found) {
                     cover(b);
                 }
@@ -367,6 +372,42 @@ final class Library {
 
     Shelf.Book book(long id) {
         return Shelf.byId(books, id);
+    }
+
+    private void lookedOnce() {
+        final ArrayList<Runnable> now;
+        synchronized (afterLook) {
+            looked = true;
+            now = new ArrayList<Runnable>(afterLook);
+            afterLook.clear();
+        }
+        ui.post(new Runnable() {
+            @Override
+            public void run() {
+                for (Runnable r : now) {
+                    r.run();
+                }
+            }
+        });
+    }
+
+    /**
+     * Runs on the main thread once the shelf folders have been looked
+     * through, at once if they already have been. Until then a book put
+     * there by hand is unknown, though the settings still name it.
+     */
+    void afterLook(Runnable r) {
+        synchronized (afterLook) {
+            if (!looked) {
+                afterLook.add(r);
+                return;
+            }
+        }
+        ui.post(r);
+    }
+
+    boolean looked() {
+        return looked;
     }
 
     boolean asking() {

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.1
+- A book from the shelf folders is remembered again after the player has stopped: the widget waits for the folders to be looked through instead of showing an empty shelf, and the player opens the book as soon as it is found, keeping a play key pressed meanwhile.
+
 ## 0.7.0
 - Looks: three palettes (paper, a warm theme, the wallpaper's own colours on Android 12 and later), each light or dark, and corners sharp, soft or round — for the window and the widgets alike.
 - The settings show the line widget as it looks now.

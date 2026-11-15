@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
@@ -15,6 +16,8 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Looper;
+import android.os.Handler;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.widget.RemoteViews;
@@ -46,11 +49,39 @@ public final class Widget extends AppWidgetProvider {
         for (int id : ids) {
             draw(c, m, id);
         }
+        hold(this, c);
     }
 
     @Override
     public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle options) {
         draw(c, m, id);
+    }
+
+    /**
+     * A widget drawn in a process started just for it may come before the
+     * shelf folders have been looked through, when a book from them is not
+     * yet known and the widget shows an empty shelf. The process is kept
+     * alive until the look is over, so the library draws the widget again,
+     * with the book; a few seconds at most.
+     */
+    static void hold(BroadcastReceiver r, Context c) {
+        Library lib = Library.get(c);
+        if (lib.looked()) {
+            return;
+        }
+        final BroadcastReceiver.PendingResult pending = r.goAsync();
+        final boolean[] over = {false};
+        Runnable finish = new Runnable() {
+            @Override
+            public void run() {
+                if (!over[0]) {
+                    over[0] = true;
+                    pending.finish();
+                }
+            }
+        };
+        lib.afterLook(finish);
+        new Handler(Looper.getMainLooper()).postDelayed(finish, 8000);
     }
 
     /** Draws every widget of the application again. */
@@ -79,6 +110,7 @@ public final class Widget extends AppWidgetProvider {
             for (int id : ids) {
                 drawButton(c, m, id);
             }
+            hold(this, c);
         }
 
         @Override

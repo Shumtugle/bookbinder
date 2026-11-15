@@ -89,6 +89,9 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
     private boolean prepared;
     /** The listener asked for sound; it starts as soon as the chapter can. */
     private boolean wanted;
+    /** The play key was pressed before the last book was known again. */
+    private boolean playSoon;
+    private boolean ended;
     private boolean resuming;
     private boolean pausedByFocus;
     private boolean noisyOn;
@@ -168,11 +171,37 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
                 seek(ms);
             }
         });
-        long last = Places.last(this);
-        Shelf.Book b = last >= 0 ? lib.book(last) : null;
+        restore();
+    }
+
+    /**
+     * Opens the book last listened to. A book from the shelf folders is
+     * known only once they have been looked through, which in a fresh
+     * process comes a moment later; a play key pressed meanwhile is kept.
+     */
+    private void restore() {
+        final long last = Places.last(this);
+        if (last < 0) {
+            return;
+        }
+        Shelf.Book b = lib.book(last);
         if (b != null) {
             open(b, -1, false);
+            return;
         }
+        lib.afterLook(new Runnable() {
+            @Override
+            public void run() {
+                if (ended || book != null) {
+                    return;
+                }
+                Shelf.Book later = lib.book(last);
+                if (later != null) {
+                    open(later, -1, playSoon);
+                }
+                playSoon = false;
+            }
+        });
     }
 
     @Override
@@ -207,6 +236,7 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
 
     @Override
     public void onDestroy() {
+        ended = true;
         save();
         lib.unwatch(this);
         ui.removeCallbacksAndMessages(null);
@@ -446,6 +476,10 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
     // ------------------------------------------------------------ sound
 
     void toggle() {
+        if (book == null) {
+            playSoon = !playSoon;
+            return;
+        }
         if (meant()) {
             pause(true);
         } else {
