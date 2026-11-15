@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1
+- A new icon: a flat open book, its spine stitched, lines of text on one page and the levels of a sound on the other, with a silhouette for themed icons.
+
 ## 0.8.0
 - The shelf puts the book opened or heard last on top, even if it was only opened.
 - Every book on the shelf shows a wide bar of the whole book, cut into its chapters; the place within a chapter now counts by time once the chapter has been played.

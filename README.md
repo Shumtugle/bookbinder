@@ -12,10 +12,19 @@ saved in.
   the chapter being heard first. Nothing is ever deleted by the app.
 - **The place in every book** is kept: chapter and second. A book taken up
   after a pause steps back a few seconds (adjustable).
+- **The place in a chapter** is a wide strip. Held or dragged, it raises a
+  drum of five-second ticks under a needle, with the time it would land on:
+  exact near the finger, quicker and quicker further off, still turning when
+  held at an edge.
 - Back 15 s, forward 30 s, chapters, speed, a sleep timer; headset keys and a
   notification with the same keys.
-- The shelf as cards or as big covers; light, dark or as the phone;
-  English, Russian and Finnish, chosen inside the app.
+- **The shelf** as cards or as big covers, the book opened last on top, each
+  with a wide bar of the whole book cut into its chapters.
+- **Looks:** paper, a warm theme, or the wallpaper's own colours; light, dark
+  or as the phone; sharp, soft or round corners — for the app and its
+  widgets alike. English, Russian and Finnish, chosen inside the app.
+
+**Download:** the APK is attached to every release of this repository.
 
 Java, platform only, no build system: `./build.sh` with a platform jar and a
 signing key in the environment. minSdk 26, targetSdk 35.
