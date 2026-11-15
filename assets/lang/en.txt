@@ -87,3 +87,4 @@ r_later=This kind of link is not supported yet.
 link_text_more=Links that work: shared folders of two cloud disks, a shared folder whose key travels in the link, and a folder on a web server that lists its files.
 chapters_n_one=%1$d chapter
 chapters_n_many=%1$d chapters
+scrub=Place in the chapter: hold and turn

@@ -88,3 +88,4 @@ link_text_more=Работают ссылки на общие папки двух
 chapters_n_one=%1$d глава
 chapters_n_few=%1$d главы
 chapters_n_many=%1$d глав
+scrub=Место в главе: держите и крутите

@@ -46,7 +46,7 @@ import java.util.Locale;
  */
 public final class Main extends Activity implements Library.Watch, Play.Ear {
 
-    static final String VERSION = "0.7.1";
+    static final String VERSION = "0.8.0";
 
     /* The page: light by default, dark on request or with the phone. */
     static int PAPER;
@@ -140,7 +140,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     private TextView bookWho;
     private TextView bookChapter;
     private TextView bookState;
-    private SeekBar seek;
+    private Dial seek;
     private TextView timeHere;
     private TextView timeAll;
     private Mark.Key playKey;
@@ -572,24 +572,25 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
     }
 
     /**
-     * Books being heard come first, the latest on top; the rest keep the
-     * folder's order. Folder names of one series are rarely written alike,
-     * so guessing the series order would be wrong as often as right.
+     * The book opened or heard last comes first, then the one before it;
+     * books never opened keep the folder's order. Folder names of one series
+     * are rarely written alike, so guessing the series order would be wrong
+     * as often as right.
      */
     private java.util.ArrayList<Shelf.Book> ordered() {
         java.util.ArrayList<Shelf.Book> all = new java.util.ArrayList<Shelf.Book>(lib.books());
         java.util.Collections.sort(all, new java.util.Comparator<Shelf.Book>() {
             @Override
             public int compare(Shelf.Book a, Shelf.Book b) {
-                long ta = Places.touched(Main.this, a.id);
-                long tb = Places.touched(Main.this, b.id);
+                long ta = Math.max(Places.touched(Main.this, a.id), Places.opened(Main.this, a.id));
+                long tb = Math.max(Places.touched(Main.this, b.id), Places.opened(Main.this, b.id));
                 return ta == tb ? 0 : (ta > tb ? -1 : 1);
             }
         });
         return all;
     }
 
-    /** A book as a big cover, its title under it and a thin line of how far it has been heard. */
+    /** A book as a big cover, its title under it and a wide bar of how far it has been heard. */
     private View bookTile(final Shelf.Book b) {
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.VERTICAL);
@@ -602,14 +603,9 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         cover.setElevation(dp(3));
         t.addView(cover, new LinearLayout.LayoutParams(-1, side));
         double done = Places.finished(this, b.id) ? 1.0 : progressOf(b);
-        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(1000);
-        bar.setProgress((int) Math.round(done * 1000));
-        bar.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
-        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(LINE));
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(3));
-        bl.topMargin = dp(8);
-        t.addView(bar, bl);
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(10));
+        bl.topMargin = dp(10);
+        t.addView(new Scale(this, starts(b), done), bl);
         TextView title = text(b.title.isEmpty() ? b.folder : b.title, 14, INK, true);
         title.setMaxLines(2);
         title.setEllipsize(TextUtils.TruncateAt.END);
@@ -636,13 +632,16 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         return t;
     }
 
+    /** A book as a card: cover, names and place, and under them a wide bar of the whole book. */
     private View bookRow(final Shelf.Book b) {
-        LinearLayout r = row();
-        r.setPadding(dp(10), dp(10), dp(12), dp(10));
-        r.setBackground(card());
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(10), dp(10), dp(12), dp(12));
+        box.setBackground(card());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = dp(10);
-        r.setLayoutParams(lp);
+        box.setLayoutParams(lp);
+        LinearLayout r = row();
 
         r.addView(coverView(b, 64), new LinearLayout.LayoutParams(dp(64), dp(64)));
 
@@ -680,21 +679,28 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
             have.setPadding(0, 0, 0, dp(4));
             words.addView(have);
         }
-        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(1000);
-        bar.setProgress((int) Math.round(done * 1000));
-        bar.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
-        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(LINE));
-        words.addView(bar, new LinearLayout.LayoutParams(-1, dp(4)));
         r.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
+        box.addView(r);
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(14));
+        bl.topMargin = dp(10);
+        box.addView(new Scale(this, starts(b), done), bl);
 
-        r.setOnClickListener(new View.OnClickListener() {
+        box.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showBook(b);
             }
         });
-        return r;
+        return box;
+    }
+
+    /** Where each chapter begins, as a share of the whole book. */
+    private static double[] starts(Shelf.Book b) {
+        double[] s = new double[b.chapters.size()];
+        for (int i = 0; i < s.length; i++) {
+            s[i] = b.done(i, 0);
+        }
+        return s;
     }
 
     private View linkCard(String text) {
@@ -1136,37 +1142,27 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         bookState.setGravity(Gravity.CENTER);
         body.addView(bookState, new LinearLayout.LayoutParams(-1, -2));
 
-        seek = new SeekBar(this);
-        seek.setMax(1000);
-        seek.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
-        seek.setThumbTintList(android.content.res.ColorStateList.valueOf(ACCENT));
-        seek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(LINE));
-        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seek = new Dial(this, new Dial.Go() {
             @Override
-            public void onProgressChanged(SeekBar s, int v, boolean user) {
-                if (user) {
-                    Play p = mine();
-                    if (p != null && p.duration() > 0) {
-                        timeHere.setText(clock(p.duration() * v / 1000));
-                    }
+            public void go(long ms) {
+                Play p = mine();
+                if (p != null && p.duration() > 0) {
+                    p.seek(ms);
                 }
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar s) {
-                dragging = true;
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar s) {
-                dragging = false;
-                Play p = mine();
-                if (p != null && p.duration() > 0) {
-                    p.seek(p.duration() * s.getProgress() / 1000);
+            public void aim(long ms) {
+                dragging = ms >= 0;
+                if (dragging) {
+                    timeHere.setText(clock(ms));
+                } else {
+                    fillTime();
                 }
             }
         });
-        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-1, dp(40));
+        seek.setContentDescription(Words.s("scrub"));
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-1, dp(48));
         sl.topMargin = dp(16);
         body.addView(seek, sl);
         LinearLayout times = row();
@@ -1277,6 +1273,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
 
     private void showBook(Shelf.Book b) {
         shown = b;
+        Places.opened(this, b.id, System.currentTimeMillis());
         libraryView.setVisibility(View.GONE);
         bookView.setVisibility(View.VISIBLE);
         chapterList.setTag(null);
@@ -1423,7 +1420,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
             timeHere.setText(clock(p != null ? p.position() : pos));
             timeAll.setText("");
             if (!dragging) {
-                seek.setProgress(0);
+                seek.set(0, 0);
             }
             seek.setEnabled(false);
             return;
@@ -1433,7 +1430,7 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         long at = p.position();
         if (!dragging) {
             timeHere.setText(clock(at));
-            seek.setProgress(d > 0 ? (int) (1000 * at / d) : 0);
+            seek.set(d, at);
         }
         timeAll.setText("−" + clock(Math.max(0, d - at)));
         if (p.sleep() > 0) {
@@ -1543,8 +1540,10 @@ public final class Main extends Activity implements Library.Watch, Play.Ear {
         if (i < 0) {
             return 0;
         }
-        /* The place within a chapter is known in time, not bytes: count the chapter as begun. */
-        return b.done(i, Places.position(this, b.id) > 0 ? 0.05 : 0);
+        /* The place within a chapter is known in time; the chapter's length is known once it was played. */
+        long at = Places.position(this, b.id);
+        long span = Places.span(this, b.id);
+        return b.done(i, at <= 0 ? 0 : span > 0 ? at / (double) span : 0.05);
     }
 
     private static String who(Shelf.Book b) {

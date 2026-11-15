@@ -797,6 +797,7 @@ public final class Play extends Service implements MediaPlayer.OnCompletionListe
             return;
         }
         Places.put(this, book.id, ch.id, position());
+        Places.span(this, book.id, duration());
     }
 
     // ------------------------------------------------------------ the room

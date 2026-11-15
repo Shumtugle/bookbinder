@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0
+- The shelf puts the book opened or heard last on top, even if it was only opened.
+- Every book on the shelf shows a wide bar of the whole book, cut into its chapters; the place within a chapter now counts by time once the chapter has been played.
+- The place in a chapter is a wide strip with a drum: hold or drag it, and a drum of five-second ticks rises under a needle, with the time and the distance from now; near the finger it moves a tick at a time, further off faster and faster, held at an edge it keeps turning, and lifting the finger goes there.
+
 ## 0.7.1
 - A book from the shelf folders is remembered again after the player has stopped: the widget waits for the folders to be looked through instead of showing an empty shelf, and the player opens the book as soon as it is found, keeping a play key pressed meanwhile.
 

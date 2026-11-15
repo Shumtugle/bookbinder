@@ -40,6 +40,24 @@ final class Places {
         return p(c).getLong("t" + book, 0);
     }
 
+    /** When the book was last opened on the shelf, heard or not; 0 if never. */
+    static long opened(Context c, long book) {
+        return p(c).getLong("o" + book, 0);
+    }
+
+    static void opened(Context c, long book, long when) {
+        p(c).edit().putLong("o" + book, when).apply();
+    }
+
+    /** How long the chapter the place is in lasts, once it has been played; 0 if unknown. */
+    static long span(Context c, long book) {
+        return p(c).getLong("d" + book, 0);
+    }
+
+    static void span(Context c, long book, long ms) {
+        p(c).edit().putLong("d" + book, ms).apply();
+    }
+
     static void finish(Context c, long book) {
         p(c).edit().putBoolean("f" + book, true).apply();
     }

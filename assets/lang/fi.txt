@@ -87,3 +87,4 @@ r_later=Tällaisia linkkejä ei vielä tueta.
 link_text_more=Toimivat: kahden pilvilevyn jaetut kansiot, kansio jonka avain kulkee linkissä, sekä verkkopalvelimen kansio, joka näyttää tiedostolistansa.
 chapters_n_one=%1$d luku
 chapters_n_many=%1$d lukua
+scrub=Kohta luvussa: pidä ja kierrä
